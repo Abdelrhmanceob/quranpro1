@@ -1,0 +1,45 @@
+# Build outputs
+bin/
+obj/
+
+# NuGet packages (restore via nuget restore)
+packages/
+*.nupkg
+
+# Package folders at project root level (if nuget installed here)
+Antlr*/
+bootstrap.*/
+EntityFramework*/
+jQuery*/
+Microsoft.AspNet*/
+Microsoft.Bcl*
+Microsoft.CodeDom*
+Microsoft.Extensions*
+Microsoft.jQuery*
+Microsoft.VisualStudio*
+Microsoft.Web*
+Modernizr*
+Newtonsoft*
+Npgsql*
+System.Buffers*
+System.IO*
+System.Memory*
+System.Numerics*
+System.Runtime*
+System.Text*
+System.Threading*
+System.ValueTuple*
+WebGrease*
+build/
+lib/
+tools/
+fonts/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.cache
+
+# Logs
+*.log
