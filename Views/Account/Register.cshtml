@@ -1,0 +1,138 @@
+﻿
+@{
+    ViewBag.Title = "Register";
+}
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إنشاء حساب</title>
+
+    <style>
+body {
+    margin: 0;
+    font-family: "Tajawal", sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #dbeafe);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* الكارد */
+.container {
+    width: 100%;
+    max-width: 350px;
+    padding: 25px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+    animation: fadeUp 0.8s ease;
+}
+
+/* انيميشن */
+@@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* الحقول */
+.input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    outline: none;
+    transition: 0.3s;
+}
+
+.input:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 8px rgba(79,70,229,0.3);
+}
+
+/* الراديو */
+.radio-group {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+/* الزر */
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #2563eb);
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn:hover {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #4338ca, #1d4ed8);
+}
+
+.footer {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* ريسبونسف */
+@@media (max-width: 500px) {
+    .container {
+        margin: 10px;
+        padding: 20px;
+    }
+}
+    </style>
+
+</head>
+<body>
+    
+
+            <div class="logo">
+                <img src="@Url.Content("~/Images/لقطة شاشة 2026-04-26 230930.png")" alt="شعار معين" style="width: 50px; height: auto;" />
+            </div>
+
+            <div class="container">
+                <h2>إنشاء حساب جديد</h2>
+
+                <input type="text" class="input" placeholder="الاسم الكامل">
+                <input type="email" class="input" placeholder="البريد الإلكتروني">
+                <input type="password" class="input" placeholder="كلمة المرور">
+
+                <div class="radio-group">
+                    هل أنت معلم أم طالب؟
+                    <br>
+                    <label><input type="radio" name="role"> معلم</label>
+                    <label><input type="radio" name="role"> طالب</label>
+                </div>
+
+                <button class="btn">تسجيل</button>
+
+                <div class="footer">جميع الحقوق محفوظة © 2026</div>
+            </div>
+
+</body>
+</html>
