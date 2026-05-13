@@ -1,0 +1,294 @@
+@model Maeen1_New.Models.ViewModels.AdminDashboardViewModel
+@{
+    Layout = null;
+    ViewBag.Title = "لوحة تحكم الأدمن";
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewBag.Title</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Tajawal", sans-serif; background: #f0f4f8; color: #1e293b; min-height: 100vh; }
+
+        .topbar {
+            background: linear-gradient(135deg, #064e3b, #059669);
+            color: #fff;
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,.18);
+        }
+        .topbar h1 { font-size: 1.25rem; font-weight: 700; }
+        .topbar .nav-links a {
+            color: rgba(255,255,255,.85);
+            text-decoration: none;
+            margin-right: 18px;
+            font-size: .9rem;
+            transition: color .2s;
+        }
+        .topbar .nav-links a:hover { color: #fff; }
+
+        .wrap { max-width: 1100px; margin: 32px auto; padding: 0 16px; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .stat-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px 18px;
+            box-shadow: 0 4px 14px rgba(6,95,70,.07);
+            border-top: 4px solid #059669;
+            text-align: center;
+        }
+        .stat-card.orange { border-top-color: #f59e0b; }
+        .stat-card.blue   { border-top-color: #3b82f6; }
+        .stat-card.purple { border-top-color: #8b5cf6; }
+        .stat-card .num { font-size: 2rem; font-weight: 700; color: #065f46; }
+        .stat-card.orange .num { color: #b45309; }
+        .stat-card.blue   .num { color: #1d4ed8; }
+        .stat-card.purple .num { color: #6d28d9; }
+        .stat-card .lbl { font-size: .82rem; color: #64748b; margin-top: 4px; }
+
+        .section {
+            background: #fff;
+            border-radius: 14px;
+            padding: 22px 24px;
+            box-shadow: 0 4px 14px rgba(6,95,70,.07);
+            margin-bottom: 24px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .section-header h2 { font-size: 1.05rem; color: #065f46; }
+
+        .btn { display: inline-block; padding: 8px 18px; border-radius: 8px; font-size: .85rem; font-family: inherit; cursor: pointer; text-decoration: none; border: none; }
+        .btn-green { background: #059669; color: #fff; }
+        .btn-green:hover { background: #047857; }
+
+        table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+        th { background: #f8fafc; color: #475569; font-weight: 600; padding: 10px 12px; text-align: right; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
+
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+        .badge-pending  { background: #fef3c7; color: #92400e; }
+        .badge-assigned { background: #dbeafe; color: #1e40af; }
+        .badge-done     { background: #d1fae5; color: #065f46; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+        .action-card {
+            flex: 1 1 200px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 4px 14px rgba(6,95,70,.07);
+            text-align: center;
+            text-decoration: none;
+            color: #1e293b;
+            transition: transform .15s, box-shadow .15s;
+            border: 1px solid #e2e8f0;
+        }
+        .action-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(6,95,70,.12); }
+        .action-card .icon  { font-size: 2rem; margin-bottom: 8px; }
+        .action-card .title { font-weight: 600; font-size: .95rem; color: #065f46; }
+        .action-card .desc  { font-size: .8rem; color: #64748b; margin-top: 4px; }
+
+        .empty { text-align: center; color: #94a3b8; padding: 28px 0; font-size: .9rem; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1>🏫 منصة معين — لوحة الأدمن</h1>
+    <div class="nav-links">
+        <a href="@Url.Action("Dashboard",   "Admin",   new { userId = Model.AdminId })">الرئيسية</a>
+        <a href="@Url.Action("ExamPanel",   "Admin",   new { userId = Model.AdminId })">طلبات الاختبارات</a>
+        <a href="@Url.Action("ExamMonitor", "Admin",   new { userId = Model.AdminId })">مراقبة الاختبارات</a>
+        <a href="@Url.Action("Login",       "Account")">تسجيل الخروج</a>
+    </div>
+</div>
+
+<div class="wrap">
+
+    <p style="color:#64748b;margin-bottom:20px">مرحباً <strong>@Model.AdminName</strong> — إليك نظرة عامة على المنصة.</p>
+
+    <!-- Stat cards -->
+    <div class="stats">
+        <div class="stat-card blue">
+            <div class="num">@Model.TotalStudents</div>
+            <div class="lbl">إجمالي الطلاب</div>
+        </div>
+        <div class="stat-card purple">
+            <div class="num">@Model.TotalTeachers</div>
+            <div class="lbl">إجمالي المعلمين</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">@Model.TotalExamRequests</div>
+            <div class="lbl">إجمالي طلبات الاختبار</div>
+        </div>
+        <div class="stat-card orange">
+            <div class="num">@Model.PendingRequests</div>
+            <div class="lbl">طلبات معلّقة</div>
+        </div>
+        <div class="stat-card blue">
+            <div class="num">@Model.AssignedRequests</div>
+            <div class="lbl">مُعيَّن لمعلم</div>
+        </div>
+        <div class="stat-card">
+            <div class="num">@Model.CompletedRequests</div>
+            <div class="lbl">نتائج مُرسَلة</div>
+        </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="actions">
+        <a class="action-card" href="@Url.Action("ExamPanel", "Admin", new { userId = Model.AdminId })">
+            <div class="icon">📋</div>
+            <div class="title">لوحة الاختبارات</div>
+            <div class="desc">إنشاء طلبات وتعيين معلمين</div>
+        </a>
+        <a class="action-card" href="@Url.Action("ExamMonitor", "Admin", new { userId = Model.AdminId })">
+            <div class="icon">📊</div>
+            <div class="title">مراقبة الاختبارات</div>
+            <div class="desc">سجلات الوصول والإحصاءات</div>
+        </a>
+        <a class="action-card" href="@Url.Action("Register", "Account")">
+            <div class="icon">➕</div>
+            <div class="title">إضافة حساب</div>
+            <div class="desc">تسجيل معلم أو طالب جديد</div>
+        </a>
+    </div>
+
+    <!-- Recent exam requests table -->
+    <div class="section">
+        <div class="section-header">
+            <h2>📝 آخر طلبات الاختبار</h2>
+            <a class="btn btn-green" href="@Url.Action("ExamPanel", "Admin", new { userId = Model.AdminId })">عرض الكل</a>
+        </div>
+
+        @if (Model.RecentRequests == null || !Model.RecentRequests.Any())
+        {
+            <div class="empty">لا توجد طلبات اختبار حتى الآن.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>عنوان الاختبار</th>
+                        <th>الطالب</th>
+                        <th>المعلم</th>
+                        <th>الحالة</th>
+                        <th>الدرجة</th>
+                        <th>تاريخ الإنشاء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.RecentRequests)
+                    {
+                        <tr>
+                            <td>@r.RequestId</td>
+                            <td><strong>@r.Title</strong></td>
+                            <td>@r.StudentName</td>
+                            <td>@r.TeacherName</td>
+                            <td>
+                                @if (r.Status == "Pending")
+                                {
+                                    <span class="badge badge-pending">معلّق</span>
+                                }
+                                else if (r.Status == "AssignedToTeacher")
+                                {
+                                    <span class="badge badge-assigned">مُعيَّن</span>
+                                }
+                                else if (r.Status == "TeacherApproved")
+                                {
+                                    <span class="badge badge-done">المعلم وافق</span>
+                                }
+                                else if (r.Status == "TeacherRejected")
+                                {
+                                    <span class="badge badge-rejected">المعلم رفض</span>
+                                }
+                                else if (r.Status == "TeacherPending")
+                                {
+                                    <span class="badge badge-pending">قرار المعلم معلّق</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-done">نتيجة مُرسَلة</span>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrEmpty(r.Grade) ? "—" : r.Grade)</td>
+                            <td style="color:#64748b;font-size:.82rem">@r.CreatedAt.ToString("yyyy/MM/dd")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>🔔 تنبيهات قرارات المعلمين</h2>
+        </div>
+
+        @if (Model.TeacherDecisionNotifications == null || !Model.TeacherDecisionNotifications.Any())
+        {
+            <div class="empty">لا توجد تنبيهات قرارات من المعلمين بعد.</div>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>الطلب</th>
+                        <th>المعلم</th>
+                        <th>القرار</th>
+                        <th>ملاحظات</th>
+                        <th>الوقت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var n in Model.TeacherDecisionNotifications)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@n.ExamTitle</strong><br />
+                                <span style="font-size:.78rem;color:#64748b">#@n.ExamRequestId</span>
+                            </td>
+                            <td>@n.TeacherName</td>
+                            <td>
+                                @if (n.DecisionStatus == "TeacherApproved")
+                                {
+                                    <span class="badge badge-done">✅ @n.DecisionLabel</span>
+                                }
+                                else if (n.DecisionStatus == "TeacherRejected")
+                                {
+                                    <span class="badge badge-rejected">❌ @n.DecisionLabel</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-pending">⏳ @n.DecisionLabel</span>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(n.DecisionNotes) ? "—" : n.DecisionNotes)</td>
+                            <td style="color:#64748b;font-size:.82rem">@n.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+</div>
+</body>
+</html>

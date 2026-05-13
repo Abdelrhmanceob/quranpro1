@@ -1,0 +1,221 @@
+@model Maeen1_New.Models.ViewModels.TeacherExamDashboardViewModel
+@{
+    ViewBag.Title = "إدارة الاختبارات";
+}
+
+<h2>إدارة الاختبارات والمهام</h2>
+
+<div style="margin-bottom: 15px;">
+    <a href="@Url.Action("Dashboard", "Teacher", new { userId = Model.TeacherId })" class="btn btn-default">لوحة المدرس</a>
+    <a href="@Url.Action("ExamRequests", "Teacher", new { userId = Model.TeacherId })" class="btn btn-primary">طلبات الاختبارات</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div style="margin-bottom: 15px;">
+    <a href="@Url.Action("PendingRecitationRequests", "Teacher", new { userId = Model.TeacherId })" class="btn btn-info">
+        عرض طلبات التسميع
+    </a>
+</div>
+
+<!-- Create New Exam -->
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">إنشاء اختبار جديد</h3>
+    </div>
+    <div class="panel-body">
+        @using (Html.BeginForm("CreateExam", "Teacher", FormMethod.Post))
+        {
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="TeacherId" value="@Model.TeacherId" />
+            <div class="form-group">
+                <label>عنوان الاختبار</label>
+                <input type="text" name="Title" class="form-control" required placeholder="مثال: اختبار حفظ جزء عم" />
+            </div>
+            <div class="form-group">
+                <label>وصف الاختبار</label>
+                <textarea name="Description" class="form-control" rows="3" placeholder="وصف مختصر للاختبار..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">إنشاء الاختبار</button>
+        }
+    </div>
+</div>
+
+<!-- Pending Approvals -->
+@if (Model.PendingApprovals.Any())
+{
+    <div class="panel panel-warning">
+        <div class="panel-heading">
+            <h3 class="panel-title">مهام في انتظار الموافقة (@Model.PendingApprovals.Count)</h3>
+        </div>
+        <div class="panel-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>الطالب</th>
+                        <th>المهمة</th>
+                        <th>الاختبار</th>
+                        <th>ملاحظات الطالب</th>
+                        <th>تاريخ التسليم</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var approval in Model.PendingApprovals)
+                    {
+                        <tr>
+                            <td>@approval.StudentName</td>
+                            <td>@approval.TaskTitle</td>
+                            <td>@approval.ExamTitle</td>
+                            <td>@(approval.Notes ?? "—")</td>
+                            <td>@approval.CompletedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>
+                                @using (Html.BeginForm("ApproveTask", "Teacher", FormMethod.Post, new { style = "display:inline" }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="completionId" value="@approval.CompletionId" />
+                                    <input type="hidden" name="teacherId" value="@Model.TeacherId" />
+                                    <button type="submit" class="btn btn-success btn-sm">موافقة</button>
+                                }
+                                @using (Html.BeginForm("RejectTask", "Teacher", FormMethod.Post, new { style = "display:inline" }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="completionId" value="@approval.CompletionId" />
+                                    <input type="hidden" name="teacherId" value="@Model.TeacherId" />
+                                    <button type="submit" class="btn btn-danger btn-sm">رفض</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- Existing Exams with Tasks -->
+@if (Model.Exams.Any())
+{
+    <h3>الاختبارات الحالية</h3>
+    foreach (var exam in Model.Exams)
+    {
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    @exam.Title
+                    <span class="label @(exam.IsActive ? "label-success" : "label-default")">
+                        @(exam.IsActive ? "نشط" : "غير نشط")
+                    </span>
+                </h3>
+            </div>
+            <div class="panel-body">
+                @if (!string.IsNullOrEmpty(exam.Description))
+                {
+                    <p class="text-muted">@exam.Description</p>
+                }
+
+                <!-- Assign Task Form -->
+                <div class="well">
+                    <h4>تعيين مهمة جديدة</h4>
+                    @using (Html.BeginForm("AssignTask", "Teacher", FormMethod.Post))
+                    {
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="ExamId" value="@exam.ExamId" />
+                        <input type="hidden" name="TeacherId" value="@Model.TeacherId" />
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>الطالب</label>
+                                    <select name="StudentId" class="form-control" required>
+                                        <option value="">-- اختر الطالب --</option>
+                                        @foreach (var student in Model.Students)
+                                        {
+                                            <option value="@student.Id">@student.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>عنوان المهمة</label>
+                                    <input type="text" name="Title" class="form-control" required placeholder="مثال: حفظ سورة الملك" />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>تاريخ الاستحقاق</label>
+                                    <input type="date" name="DueDate" class="form-control" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>وصف المهمة</label>
+                            <textarea name="Description" class="form-control" rows="2" placeholder="تفاصيل إضافية..."></textarea>
+                        </div>
+                        <div class="checkbox">
+                            <label>
+                                <input type="checkbox" name="IsRequired" value="true" checked /> مهمة إلزامية (يجب إكمالها للوصول للاختبار)
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-info">تعيين المهمة</button>
+                    }
+                </div>
+
+                <!-- Tasks List -->
+                @if (exam.Tasks.Any())
+                {
+                    <h4>المهام المعينة</h4>
+                    <table class="table table-condensed">
+                        <thead>
+                            <tr>
+                                <th>المهمة</th>
+                                <th>الطالب</th>
+                                <th>تاريخ التعيين</th>
+                                <th>الاستحقاق</th>
+                                <th>إلزامية</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in exam.Tasks)
+                            {
+                                <tr class="@(task.IsApproved ? "success" : task.IsCompleted ? "warning" : "")">
+                                    <td>@task.Title</td>
+                                    <td>@task.StudentName</td>
+                                    <td>@task.AssignedAt.ToString("yyyy-MM-dd")</td>
+                                    <td>@(task.DueDate.HasValue ? task.DueDate.Value.ToString("yyyy-MM-dd") : "—")</td>
+                                    <td>@(task.IsRequired ? "نعم" : "لا")</td>
+                                    <td>
+                                        @if (task.IsApproved)
+                                        {
+                                            <span class="label label-success">تمت الموافقة</span>
+                                        }
+                                        else if (task.IsCompleted)
+                                        {
+                                            <span class="label label-warning">في انتظار الموافقة</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="label label-default">لم يُسلّم</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-info">لا توجد اختبارات حالياً. أنشئ اختباراً جديداً للبدء.</div>
+}

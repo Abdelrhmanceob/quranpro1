@@ -1,25 +1,381 @@
-﻿
+﻿@model Maeen1_New.Models.ViewModels.TeacherDashboardViewModel
 @{
-    ViewBag.Title = "Dashboard";
+    Layout = null;
+    ViewBag.Title = "لوحة تحكم المعلم";
+    var notificationCollection = Model != null ? Model.Notifications as System.Collections.ICollection : null;
+    var notifications = Model != null ? Model.Notifications as System.Collections.IEnumerable : null;
+    var teacherId = Model != null ? Model.TeacherId : 0;
+    var teacherName = Model != null && !string.IsNullOrWhiteSpace(Model.TeacherName) ? Model.TeacherName : "المعلم";
 }
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewBag.Title</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Amiri&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #065f46;
+            --primary-dark: #004532;
+            --secondary: #904d00;
+            --surface: #f9f9ff;
+            --surface-card: #ffffff;
+            --surface-soft: #f0f3ff;
+            --text: #151c27;
+            --text-soft: #5f6b73;
+            --border: #dce2f3;
+        }
 
-<h2>تحديد الأوقات المتاحة</h2>
+        * { box-sizing: border-box; }
 
-<form method="post">
-    <label>اليوم:</label>
-    <input type="date" name="Date" />
+        body {
+            margin: 0;
+            font-family: "Tajawal", sans-serif;
+            background: var(--surface);
+            color: var(--text);
+        }
 
-    <label>الوقت:</label>
-    <input type="time" name="Time" />
+        .layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
 
-    <br /><br />
-    <button type="submit">إضافة</button>
-</form>
+        .sidebar {
+            background: #eef2ff;
+            padding: 22px 16px;
+            border-left: 1px solid var(--border);
+        }
 
-<hr />
+        .brand {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0;
+        }
 
-<h3>الأوقات المتاحة:</h3>
-<ul>
-    <li>الأحد - 4:00 مساءً</li>
-    <li>الثلاثاء - 6:00 مساءً</li>
-</ul>
+        .brand-sub {
+            margin: 4px 0 24px;
+            color: var(--text-soft);
+        }
+
+        .nav-link {
+            display: block;
+            padding: 12px 14px;
+            border-radius: 10px;
+            color: var(--text);
+            text-decoration: none;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .nav-link.active {
+            background: #dde4f6;
+            color: var(--primary-dark);
+            border-right: 4px solid var(--primary);
+        }
+
+        .primary-btn {
+            width: 100%;
+            border: 0;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #fff;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .welcome h2 {
+            margin: 0 0 6px;
+            color: var(--primary);
+        }
+
+        .welcome p {
+            margin: 0;
+            color: var(--text-soft);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 10px 28px rgba(6,95,70,0.05);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+        }
+
+        .hero h3 {
+            margin: 10px 0;
+            font-size: 28px;
+        }
+
+        .hero-actions a {
+            display: inline-block;
+            text-decoration: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-left: 8px;
+            margin-top: 8px;
+        }
+
+        .hero-actions .main {
+            background: #fff;
+            color: var(--primary-dark);
+            font-weight: 700;
+        }
+
+        .hero-actions .sub {
+            border: 1px solid rgba(255,255,255,0.5);
+            color: #fff;
+        }
+
+        .progress {
+            height: 10px;
+            background: #e7eefe;
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 8px 0 14px;
+        }
+
+        .progress > span {
+            display: block;
+            width: 85%;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #edf1fb;
+            text-align: right;
+        }
+
+        th {
+            background: #eef2ff;
+            color: #4c5a64;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .badge.ok {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge.warn {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+
+        .test-box {
+            margin-top: 16px;
+            background: #eef7f3;
+            border: 1px dashed #a7d9c5;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .test-box strong {
+            color: var(--primary-dark);
+        }
+
+        .notifications {
+            margin-top: 16px;
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .notifications h3 {
+            margin: 0 0 10px;
+            color: var(--primary);
+        }
+
+        .notification-item {
+            border: 1px solid #edf1fb;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fbfcff;
+        }
+
+        .notification-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .notification-meta {
+            color: var(--text-soft);
+            font-size: 14px;
+        }
+
+        @@media (max-width: 980px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { border-left: 0; border-bottom: 1px solid var(--border); }
+            .cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <h1 class="brand">معين</h1>
+            <p class="brand-sub">منصة حفظ القرآن</p>
+            <a class="nav-link active" href="@Url.Action("Dashboard", "Teacher", new { userId = teacherId })">لوحة التحكم</a>
+            <a class="nav-link" href="@Url.Action("ExamRequests", "Teacher", new { userId = teacherId })">طلبات الاختبارات</a>
+            <a class="nav-link" href="@Url.Action("ExamManagement", "Teacher", new { userId = teacherId })">حفظي</a>
+            <a class="nav-link" href="@Url.Action("PendingRecitationRequests", "Teacher", new { userId = teacherId })">الجلسات</a>
+            <a class="nav-link" href="@Url.Action("Dashboard", "Admin", new { userId = teacherId })">لوحة الأدمن</a>
+            <a class="nav-link" href="@Url.Action("Login", "Account")">تسجيل الخروج</a>
+            <a class="primary-btn" style="display:inline-block;text-decoration:none;text-align:center;" href="@Url.Action("PendingRecitationRequests", "Teacher", new { userId = teacherId })">+ إضافة رابط جلسة</a>
+        </aside>
+
+        <main class="content">
+            <div class="topbar">
+                <div class="welcome">
+                    <h2>أهلاً بك، @teacherName</h2>
+                    <p>متابعة مباشرة لطلبات الطلاب وتعيينات الأدمن ونتائج الاختبارات.</p>
+                </div>
+            </div>
+
+            <section class="cards">
+                <article class="card hero">
+                    <small>حالة المنصة الآن</small>
+                    <h3>طلبات بانتظارك: @(Model != null ? Model.PendingExamRequests : 0)</h3>
+                    <p>نتائج أُرسلت: @(Model != null ? Model.CompletedExamRequests : 0) | تسميعات معلقة: @(Model != null ? Model.PendingRecitationRequests : 0)</p>
+                    <div class="hero-actions">
+                        <a class="main" href="@Url.Action("ExamRequests", "Teacher", new { userId = teacherId })">فتح طلبات الاختبارات</a>
+                        <a class="sub" href="@Url.Action("PendingRecitationRequests", "Teacher", new { userId = teacherId })">متابعة جلسات التسميع</a>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <h3 style="margin-top:0;color:var(--primary)">ملخص المجموعة</h3>
+                    @{
+                        var totalTasks = Model != null ? Model.Students.Sum(s => s.TotalTasks) : 0;
+                        var completedTasks = Model != null ? Model.Students.Sum(s => s.CompletedTasks) : 0;
+                        var progress = totalTasks > 0 ? (int)Math.Round((completedTasks * 100.0) / totalTasks) : 0;
+                    }
+                    <div>نسبة إنجاز مهام الطلاب: <strong>@progress%</strong></div>
+                    <div class="progress"><span style="width:@(progress)%"></span></div>
+                    <div style="display:flex;justify-content:space-between;color:var(--text-soft)">
+                        <span>طلاب المتابعة: @(Model != null ? Model.TotalStudents : 0)</span>
+                        <span>موافقات معلقة: @(Model != null ? Model.PendingApprovals : 0)</span>
+                    </div>
+                </article>
+            </section>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>الطالب</th>
+                        <th>آخر طلب اختبار</th>
+                        <th>المهام المنجزة</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model == null || Model.Students == null || !Model.Students.Any())
+                    {
+                        <tr>
+                            <td colspan="4">لا توجد بيانات طلاب مرتبطة بك حتى الآن.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var student in Model.Students)
+                        {
+                            <tr>
+                                <td>@student.StudentName</td>
+                                <td>@(string.IsNullOrWhiteSpace(student.LatestExamTitle) ? "-" : student.LatestExamTitle)</td>
+                                <td>@student.CompletedTasks / @student.TotalTasks</td>
+                                <td>
+                                    @if (student.Status == "ResultSent")
+                                    {
+                                        <span class="badge ok">تم إرسال النتيجة</span>
+                                    }
+                                    else if (student.Status == "AssignedToTeacher")
+                                    {
+                                        <span class="badge warn">بانتظار تقييمك</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge warn">@student.Status</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+
+            <section class="notifications">
+                <h3>إشعارات اختبارات الطلاب</h3>
+                @if (notificationCollection == null || notificationCollection.Count == 0)
+                {
+                    <p class="notification-meta">لا توجد إشعارات جديدة حاليًا.</p>
+                }
+                else
+                {
+                    foreach (var item in notifications)
+                    {
+                        dynamic n = item;
+                        <article class="notification-item">
+                            <strong>أكمل الطالب @n.StudentName اختبار تحديد المستوى</strong>
+                            <div class="notification-meta">المستوى الناتج: @n.AssessmentLevel</div>
+                            <div class="notification-meta">@(((DateTime)n.CreatedAt).ToLocalTime().ToString("yyyy/MM/dd hh:mm tt"))</div>
+                        </article>
+                    }
+                }
+            </section>
+
+            <div class="test-box">
+                <strong>تنبيه مهم:</strong>
+                هذه اللوحة متصلة مباشرة بلوحة الأدمن والطالب: أي طلب يُنشأ من الطالب أو يُعيَّن من الأدمن سيظهر هنا تلقائيًا.
+            </div>
+        </main>
+    </div>
+</body>
+</html>

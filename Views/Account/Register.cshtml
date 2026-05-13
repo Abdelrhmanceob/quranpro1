@@ -109,30 +109,36 @@ body {
 
 </head>
 <body>
-    
+    <div class="logo">
+        <img src="@Url.Content("~/Images/لقطة شاشة 2026-04-26 230930.png")" alt="شعار معين" style="width: 50px; height: auto;" />
+    </div>
 
-            <div class="logo">
-                <img src="@Url.Content("~/Images/لقطة شاشة 2026-04-26 230930.png")" alt="شعار معين" style="width: 50px; height: auto;" />
+    <div class="container">
+        <h2>إنشاء حساب جديد</h2>
+
+        @if (ViewBag.Error != null)
+        {
+            <p style="color:red">@ViewBag.Error</p>
+        }
+
+        <form method="post" action="/Account/Register">
+            <input type="text" name="Name" class="input" placeholder="الاسم الكامل" required>
+            <input type="email" name="Email" class="input" placeholder="البريد الإلكتروني" required>
+            <input type="password" name="Password" class="input" placeholder="كلمة المرور" required>
+
+            <div class="radio-group">
+                نوع الحساب:
+                <br>
+                <label><input type="radio" name="Role" value="Teacher" required> معلم</label>
+                <label><input type="radio" name="Role" value="Student" required> طالب</label>
+                <label><input type="radio" name="Role" value="Admin" required> أدمن (اختبار)</label>
             </div>
 
-            <div class="container">
-                <h2>إنشاء حساب جديد</h2>
+            <button class="btn" type="submit">تسجيل</button>
+        </form>
 
-                <input type="text" class="input" placeholder="الاسم الكامل">
-                <input type="email" class="input" placeholder="البريد الإلكتروني">
-                <input type="password" class="input" placeholder="كلمة المرور">
-
-                <div class="radio-group">
-                    هل أنت معلم أم طالب؟
-                    <br>
-                    <label><input type="radio" name="role"> معلم</label>
-                    <label><input type="radio" name="role"> طالب</label>
-                </div>
-
-                <button class="btn">تسجيل</button>
-
-                <div class="footer">جميع الحقوق محفوظة © 2026</div>
-            </div>
+        <div class="footer">جميع الحقوق محفوظة © 2026</div>
+    </div>
 
 </body>
 </html>

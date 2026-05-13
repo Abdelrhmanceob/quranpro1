@@ -1,0 +1,22 @@
+@model Tuple<int, int>
+@{
+    var requestId = Model.Item1;
+    var studentId = Model.Item2;
+}
+<div class="student-voice-recorder" dir="rtl">
+    <div style="margin-bottom: 6px;">
+        <button type="button" class="btn btn-danger btn-sm js-vrec-start">● بدء التسجيل</button>
+        <button type="button" class="btn btn-default btn-sm js-vrec-stop" disabled>■ إيقاف</button>
+        <span class="small text-muted js-vrec-status" style="margin-right:8px;"></span>
+    </div>
+    <audio class="js-vrec-preview" controls preload="metadata" style="display:none;width:100%;max-height:42px;margin-bottom:6px;"></audio>
+    @using (Html.BeginForm("UploadRecitationVoice", "Student", FormMethod.Post, new { enctype = "multipart/form-data", @class = "js-vrec-form" }))
+    {
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="requestId" value="@requestId" />
+        <input type="hidden" name="studentId" value="@studentId" />
+        <label class="small text-muted">أو اختر ملفاً من الجهاز:</label>
+        <input type="file" name="voiceFile" accept="audio/*" class="form-control input-sm js-vrec-file" />
+        <button type="submit" class="btn btn-success btn-sm js-vrec-submit" style="margin-top:6px;">إرسال الصوت للمعلم</button>
+    }
+</div>

@@ -1,0 +1,557 @@
+@model Maeen1_New.Models.ViewModels.TeacherExamRequestsViewModel
+@{
+    ViewBag.Title = "طلبات الاختبارات";
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات الاختبارات - معلم</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Tajawal", "Segoe UI", sans-serif; background: #f0f4f8; color: #1e293b; }
+        .topbar { background: linear-gradient(135deg, #064e3b, #059669); color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+        .topbar h1 { font-size: 20px; }
+        .topbar a { color: #a7f3d0; text-decoration: none; font-size: 14px; }
+        .container { max-width: 1100px; margin: 28px auto; padding: 0 20px; }
+        .alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: white; padding: 6px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); width: fit-content; }
+        .tab-btn { padding: 10px 22px; border: none; border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer; background: transparent; color: #64748b; transition: 0.2s; }
+        .tab-btn.active { background: #059669; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px; overflow: hidden; }
+        .card-header { padding: 16px 22px; font-size: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .card-header.pending { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
+        .card-header.done { background: linear-gradient(135deg, #064e3b, #059669); color: white; }
+        .card-body { padding: 22px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+        .info-item { background: #f8fafc; border-radius: 8px; padding: 12px 14px; }
+        .info-item label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+        .info-item span { font-size: 14px; color: #1e293b; }
+        .plan-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 16px; margin-bottom: 18px; }
+        .plan-box h4 { color: #1e40af; font-size: 14px; margin-bottom: 10px; }
+        .plan-box p { font-size: 13px; color: #374151; white-space: pre-wrap; line-height: 1.7; }
+        .plan-objectives { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px; margin-bottom: 18px; }
+        .plan-objectives h4 { color: #065f46; font-size: 14px; margin-bottom: 8px; }
+        .plan-objectives p { font-size: 13px; color: #374151; white-space: pre-wrap; line-height: 1.7; }
+        .answers-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .answers-chip {
+            display: inline-block;
+            background: #ecfeff;
+            border: 1px solid #bae6fd;
+            color: #155e75;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .answers-text { line-height: 1.8; white-space: pre-wrap; }
+        .result-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 16px; margin-top: 14px; }
+        .result-box h4 { color: #065f46; font-size: 14px; margin-bottom: 12px; }
+        .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .result-item { background: white; border-radius: 8px; padding: 10px 12px; text-align: center; }
+        .result-item .val { font-size: 22px; font-weight: bold; color: #059669; }
+        .result-item .lbl { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .send-form { border-top: 1px solid #e2e8f0; padding-top: 18px; margin-top: 18px; }
+        .send-form h4 { color: #1e3a5f; font-size: 15px; margin-bottom: 16px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { font-size: 13px; font-weight: 600; color: #374151; }
+        input, select, textarea { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; width: 100%; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+        textarea { resize: vertical; min-height: 70px; }
+        .btn { padding: 10px 22px; border: none; border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: #059669; color: white; }
+        .btn-primary:hover { background: #047857; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-assigned { background: #dbeafe; color: #1e40af; }
+        .badge-sent { background: #d1fae5; color: #065f46; }
+        .badge-approved { background: #dcfce7; color: #166534; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .empty-state { text-align: center; padding: 50px; color: #94a3b8; }
+        @@media (max-width: 700px) { .form-grid, .info-grid, .result-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>📋 طلبات الاختبارات</h1>
+        <div>
+            <a href="/Teacher/Dashboard?userId=@Model.TeacherId">← لوحة التحكم</a>
+            &nbsp;&nbsp;
+            <a href="/Teacher/ExamManagement?userId=@Model.TeacherId">إدارة الاختبارات</a>
+        </div>
+    </div>
+
+    <div class="container">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">✅ @TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-error">❌ @TempData["Error"]</div>
+        }
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('assigned')">
+                ⏳ معلقة (@Model.AssignedRequests.Count)
+            </button>
+            <button class="tab-btn" onclick="switchTab('completed')">
+                ✅ مكتملة (@Model.CompletedRequests.Count)
+            </button>
+        </div>
+
+        <!-- Assigned / Pending Tab -->
+        <div class="tab-content active" id="tab-assigned">
+            @if (!Model.AssignedRequests.Any())
+            {
+                <div class="empty-state">
+                    <div style="font-size:48px">📭</div>
+                    <p style="margin-top:12px">لا توجد طلبات اختبارات معلقة</p>
+                </div>
+            }
+            else
+            {
+                foreach (var req in Model.AssignedRequests)
+                {
+                    var reqType = req.GetType();
+                    Func<string, string> getReqString = name =>
+                    {
+                        var prop = reqType.GetProperty(name);
+                        if (prop == null) return null;
+                        return Convert.ToString(prop.GetValue(req, null));
+                    };
+                    Func<string, int?> getReqInt = name =>
+                    {
+                        var prop = reqType.GetProperty(name);
+                        if (prop == null) return null;
+                        var value = prop.GetValue(req, null);
+                        if (value == null) return null;
+                        int parsed;
+                        return int.TryParse(Convert.ToString(value), out parsed) ? (int?)parsed : null;
+                    };
+                    Func<string, string, string> extractLineValue = (text, prefix) =>
+                    {
+                        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(prefix))
+                        {
+                            return null;
+                        }
+
+                        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var raw in lines)
+                        {
+                            var line = raw.Trim();
+                            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return line.Substring(prefix.Length).Trim();
+                            }
+                        }
+
+                        return null;
+                    };
+                    Func<string, int?> tryParseInt = raw =>
+                    {
+                        if (string.IsNullOrWhiteSpace(raw))
+                        {
+                            return null;
+                        }
+
+                        int parsed;
+                        return int.TryParse(raw.Trim(), out parsed) ? (int?)parsed : null;
+                    };
+                    Func<string, List<string>> parseList = raw =>
+                    {
+                        var value = (raw ?? string.Empty).Trim();
+                        if (string.IsNullOrWhiteSpace(value))
+                        {
+                            return new List<string>();
+                        }
+
+                        return value
+                            .Replace("،", ",")
+                            .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(x => x.Trim())
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
+                    };
+
+                    var determinedLevel = getReqString("DeterminedLevel");
+                    var dailyMemorizationHours = getReqInt("DailyMemorizationHours");
+                    var targetJuzCount = getReqInt("TargetJuzCount");
+                    var completedJuzCount = getReqInt("CompletedJuzCount");
+                    var tajweedLevel = getReqString("TajweedLevel");
+                    var targetDuration = getReqString("TargetDuration");
+                    var targetJuzNames = getReqString("TargetJuzNames");
+                    var completedJuzNames = getReqString("CompletedJuzNames");
+                    var reqDescription = req.Description ?? string.Empty;
+
+                    if (string.IsNullOrWhiteSpace(determinedLevel))
+                    {
+                        determinedLevel = extractLineValue(reqDescription, "المستوى:");
+                    }
+                    if (!dailyMemorizationHours.HasValue)
+                    {
+                        dailyMemorizationHours = tryParseInt(extractLineValue(reqDescription, "ساعات الحفظ اليومية:"));
+                    }
+                    if (!targetJuzCount.HasValue)
+                    {
+                        targetJuzCount = tryParseInt(extractLineValue(reqDescription, "الأجزاء المستهدفة:"));
+                    }
+                    if (!completedJuzCount.HasValue)
+                    {
+                        completedJuzCount = tryParseInt(extractLineValue(reqDescription, "الأجزاء المحفوظة مسبقًا:"));
+                    }
+                    if (string.IsNullOrWhiteSpace(tajweedLevel))
+                    {
+                        tajweedLevel = extractLineValue(reqDescription, "مستوى التجويد:");
+                    }
+                    if (string.IsNullOrWhiteSpace(targetDuration))
+                    {
+                        targetDuration = extractLineValue(reqDescription, "المدة الزمنية المستهدفة:");
+                    }
+                    if (string.IsNullOrWhiteSpace(targetJuzNames))
+                    {
+                        targetJuzNames = extractLineValue(reqDescription, "الأجزاء المستهدفة بالاسم:")
+                            ?? extractLineValue(reqDescription, "أسماء الأجزاء المستهدفة:");
+                    }
+                    if (string.IsNullOrWhiteSpace(completedJuzNames))
+                    {
+                        completedJuzNames = extractLineValue(reqDescription, "الأجزاء المحفوظة مسبقًا بالاسم:")
+                            ?? extractLineValue(reqDescription, "أسماء الأجزاء المحفوظة مسبقًا:");
+                    }
+                    var targetJuzNamesList = parseList(targetJuzNames);
+                    var completedJuzNamesList = parseList(completedJuzNames);
+                    var teacherDecisionStatus = getReqString("TeacherDecisionStatus");
+                    if (string.IsNullOrWhiteSpace(teacherDecisionStatus))
+                    {
+                        if (string.Equals(req.Status, "TeacherApproved", StringComparison.OrdinalIgnoreCase))
+                        {
+                            teacherDecisionStatus = "TeacherApproved";
+                        }
+                        else if (string.Equals(req.Status, "TeacherRejected", StringComparison.OrdinalIgnoreCase))
+                        {
+                            teacherDecisionStatus = "TeacherRejected";
+                        }
+                        else
+                        {
+                            teacherDecisionStatus = "TeacherPending";
+                        }
+                    }
+
+                    <div class="card">
+                        <div class="card-header pending">
+                            <span>📝 @req.Title</span>
+                            @if (teacherDecisionStatus == "TeacherApproved")
+                            {
+                                <span class="badge badge-approved">✅ موافق</span>
+                            }
+                            else if (teacherDecisionStatus == "TeacherRejected")
+                            {
+                                <span class="badge badge-rejected">❌ مرفوض</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-pending">⏳ معلّق</span>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>الطالب</label>
+                                    <span>@req.StudentName</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>مدة الاختبار</label>
+                                    <span>@(req.PlanDurationMinutes.HasValue ? req.PlanDurationMinutes + " دقيقة" : "غير محددة")</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>تاريخ الإنشاء</label>
+                                    <span>@req.CreatedAt.ToString("yyyy/MM/dd")</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>تاريخ التعيين</label>
+                                    <span>@(req.AssignedAt.HasValue ? req.AssignedAt.Value.ToString("yyyy/MM/dd") : "-")</span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(req.Description))
+                            {
+                                <p style="font-size:14px;color:#475569;margin-bottom:16px">@req.Description</p>
+                            }
+
+                            @if (!string.IsNullOrEmpty(req.PlanObjectives))
+                            {
+                                <div class="plan-objectives">
+                                    <h4>🎯 أهداف الاختبار (من الأدمن)</h4>
+                                    <p>@req.PlanObjectives</p>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(req.PlanContent))
+                            {
+                                <div class="plan-box">
+                                    <h4>📋 خطة الاختبار (من الأدمن)</h4>
+                                    <p>@req.PlanContent</p>
+                                </div>
+                            }
+
+                            <div class="plan-objectives">
+                                <h4>🧾 إجابات الطالب قبل الاختبار</h4>
+                                <div class="info-grid" style="margin-bottom:0">
+                                    <div class="info-item">
+                                        <label>مستوى الطالب المبدئي</label>
+                                        <span>@(string.IsNullOrWhiteSpace(determinedLevel) ? "غير متوفر" : determinedLevel)</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>ساعات الحفظ اليومية</label>
+                                        <span>@(dailyMemorizationHours.HasValue ? dailyMemorizationHours + " ساعة" : "غير متوفر")</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>عدد الأجزاء المستهدفة</label>
+                                        <span>@(targetJuzCount.HasValue ? targetJuzCount.ToString() : "غير متوفر")</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>الأجزاء المحفوظة مسبقًا</label>
+                                        <span>@(completedJuzCount.HasValue ? completedJuzCount.ToString() : "غير متوفر")</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>مستوى التجويد</label>
+                                        <span>@(string.IsNullOrWhiteSpace(tajweedLevel) ? "غير متوفر" : tajweedLevel)</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>المدة الزمنية المستهدفة</label>
+                                        <span>@(string.IsNullOrWhiteSpace(targetDuration) ? "غير متوفر" : targetDuration)</span>
+                                    </div>
+                                    <div class="info-item" style="grid-column: 1 / -1;">
+                                        <label>أسماء الأجزاء المستهدفة</label>
+                                        @if (targetJuzNamesList.Any())
+                                        {
+                                            <div class="answers-list">
+                                                @foreach (var part in targetJuzNamesList)
+                                                {
+                                                    <span class="answers-chip">@part</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="answers-text">غير متوفر</span>
+                                        }
+                                    </div>
+                                    <div class="info-item" style="grid-column: 1 / -1;">
+                                        <label>أسماء الأجزاء المحفوظة مسبقًا</label>
+                                        @if (completedJuzNamesList.Any())
+                                        {
+                                            <div class="answers-list">
+                                                @foreach (var part in completedJuzNamesList)
+                                                {
+                                                    <span class="answers-chip">@part</span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="answers-text">غير متوفر</span>
+                                        }
+                                    </div>
+                                    <div class="info-item" style="grid-column: 1 / -1;">
+                                        <label>خطة الحفظ للطالب *</label>
+                                        <textarea
+                                            name="Recommendations"
+                                            form="send-result-form-@req.RequestId"
+                                            required
+                                            placeholder="اكتب خطة حفظ واضحة للطالب بناءً على إجاباته (الكمية اليومية، جدول المراجعة، أهداف أسبوعية)..."
+                                            style="margin-top:8px; min-height:110px;"></textarea>
+                                    </div>
+                                    <div class="info-item" style="grid-column: 1 / -1;">
+                                        @using (Html.BeginForm("SendExamResult", "Teacher", FormMethod.Post, new { id = "send-plan-form-" + req.RequestId }))
+                                        {
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="RequestId" value="@req.RequestId" />
+                                            <input type="hidden" name="TeacherId" value="@Model.TeacherId" />
+                                            <input type="hidden" name="StudentId" value="@req.StudentId" />
+                                            <input type="hidden" name="Grade" value="خطة حفظ" />
+                                            <textarea name="Recommendations" required placeholder="اكتب خطة الحفظ لإرسالها مباشرة للطالب..." style="margin-top:8px; min-height:110px;"></textarea>
+                                            <input type="text" name="TeacherNotes" placeholder="ملاحظة للطالب (اختياري)" style="margin-top:8px;" />
+                                            <div style="margin-top:10px;">
+                                                <button type="submit" class="btn btn-primary">📩 إرسال خطة الحفظ للطالب</button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="send-form" style="margin-bottom:12px">
+                                <h4>📌 قرار المعلم على الطلب</h4>
+                                @using (Html.BeginForm("UpdateTeacherDecision", "Teacher", FormMethod.Post))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="requestId" value="@req.RequestId" />
+                                    <input type="hidden" name="teacherId" value="@Model.TeacherId" />
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label>القرار</label>
+                                            <select name="decisionStatus" required>
+                                                <option value="">-- اختر --</option>
+                                                <option value="TeacherApproved" @(teacherDecisionStatus == "TeacherApproved" ? "selected" : "")>موافق</option>
+                                                <option value="TeacherRejected" @(teacherDecisionStatus == "TeacherRejected" ? "selected" : "")>مرفوض</option>
+                                                <option value="TeacherPending" @(teacherDecisionStatus == "TeacherPending" ? "selected" : "")>معلّق</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group full">
+                                            <label>ملاحظات القرار (تظهر للأدمن)</label>
+                                            <textarea name="decisionNotes" placeholder="سبب القرار أو ملاحظات إضافية..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:12px">
+                                        <button type="submit" class="btn btn-primary">💾 حفظ القرار وإشعار الأدمن</button>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Send Result Form -->
+                            <div class="send-form">
+                                <h4>📤 إرسال نتيجة الاختبار</h4>
+                                @using (Html.BeginForm("SendExamResult", "Teacher", FormMethod.Post, new { id = "send-result-form-" + req.RequestId }))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="RequestId" value="@req.RequestId" />
+                                    <input type="hidden" name="TeacherId" value="@Model.TeacherId" />
+                                    <input type="hidden" name="StudentId" value="@req.StudentId" />
+                                    <input type="hidden" name="TeacherDecisionStatus" value="@teacherDecisionStatus" />
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label>الدرجة المحصلة</label>
+                                            <input type="number" name="Score" step="0.5" min="0" placeholder="مثال: 85" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>الدرجة الكاملة</label>
+                                            <input type="number" name="MaxScore" step="0.5" min="0" placeholder="مثال: 100" />
+                                        </div>
+                                        <div class="form-group">
+                                            <label>التقدير *</label>
+                                            <select name="Grade" required>
+                                                <option value="">-- اختر التقدير --</option>
+                                                <option value="ممتاز">ممتاز (A)</option>
+                                                <option value="جيد جداً">جيد جداً (B)</option>
+                                                <option value="جيد">جيد (C)</option>
+                                                <option value="مقبول">مقبول (D)</option>
+                                                <option value="راسب">راسب (F)</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>ملاحظات المعلم</label>
+                                            <input type="text" name="TeacherNotes" placeholder="ملاحظة مختصرة..." />
+                                        </div>
+                                        <div class="form-group full">
+                                            <label>نقاط القوة</label>
+                                            <textarea name="Strengths" placeholder="ما أجاد فيه الطالب..."></textarea>
+                                        </div>
+                                        <div class="form-group full">
+                                            <label>نقاط الضعف</label>
+                                            <textarea name="Weaknesses" placeholder="ما يحتاج الطالب تحسينه..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:16px">
+                                        <button type="submit" class="btn btn-primary">📤 إرسال النتيجة</button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Completed Tab -->
+        <div class="tab-content" id="tab-completed">
+            @if (!Model.CompletedRequests.Any())
+            {
+                <div class="empty-state">
+                    <div style="font-size:48px">📭</div>
+                    <p style="margin-top:12px">لا توجد نتائج مرسلة بعد</p>
+                </div>
+            }
+            else
+            {
+                foreach (var req in Model.CompletedRequests)
+                {
+                    var completedReqType = req.GetType();
+                    var recommendationsProperty = completedReqType.GetProperty("Recommendations");
+                    var recommendationsValue = recommendationsProperty != null
+                        ? Convert.ToString(recommendationsProperty.GetValue(req, null))
+                        : null;
+
+                    <div class="card">
+                        <div class="card-header done">
+                            <span>✅ @req.Title</span>
+                            <span class="badge badge-sent">النتيجة مرسلة</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>الطالب</label>
+                                    <span>@req.StudentName</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>تاريخ إرسال النتيجة</label>
+                                    <span>@(req.ResultSentAt.HasValue ? req.ResultSentAt.Value.ToString("yyyy/MM/dd HH:mm") : "-")</span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(req.PlanContent))
+                            {
+                                <div class="plan-box">
+                                    <h4>📋 خطة الاختبار (من الأدمن)</h4>
+                                    <p>@req.PlanContent</p>
+                                </div>
+                            }
+
+                            <div class="result-box">
+                                <h4>📊 النتيجة المرسلة</h4>
+                                <div class="result-grid">
+                                    <div class="result-item">
+                                        <div class="val">@(req.Score.HasValue ? req.Score.ToString() : "-")</div>
+                                        <div class="lbl">الدرجة</div>
+                                    </div>
+                                    <div class="result-item">
+                                        <div class="val">@(req.MaxScore.HasValue ? req.MaxScore.ToString() : "-")</div>
+                                        <div class="lbl">من</div>
+                                    </div>
+                                    <div class="result-item">
+                                        <div class="val" style="font-size:16px">@(req.Grade ?? "-")</div>
+                                        <div class="lbl">التقدير</div>
+                                    </div>
+                                </div>
+                                @if (!string.IsNullOrEmpty(req.TeacherNotes))
+                                {
+                                    <p style="font-size:13px;color:#374151"><strong>ملاحظات:</strong> @req.TeacherNotes</p>
+                                }
+                                @if (!string.IsNullOrEmpty(recommendationsValue))
+                                {
+                                    <p style="font-size:13px;color:#374151;margin-top:8px"><strong>خطة الحفظ:</strong> @recommendationsValue</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <script>
+        function switchTab(name) {
+            document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.getElementById('tab-' + name).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

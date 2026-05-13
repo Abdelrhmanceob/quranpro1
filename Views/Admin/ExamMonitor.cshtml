@@ -1,0 +1,91 @@
+@model Maeen1_New.Models.ViewModels.AdminExamMonitorViewModel
+@{
+    ViewBag.Title = "مراقبة الاختبارات";
+}
+
+<h2>مراقبة الاختبارات</h2>
+<p class="text-muted">مرحباً @ViewBag.AdminName - يمكنك متابعة جميع الاختبارات ومن دخلها من هنا.</p>
+
+<!-- Exam Summaries -->
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">ملخص الاختبارات</h3>
+    </div>
+    <div class="panel-body">
+        @if (Model.ExamSummaries.Any())
+        {
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>الاختبار</th>
+                        <th>المعلم</th>
+                        <th>إجمالي المهام</th>
+                        <th>المهام المكتملة</th>
+                        <th>عدد الطلاب الذين دخلوا</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var summary in Model.ExamSummaries)
+                    {
+                        <tr>
+                            <td><strong>@summary.ExamTitle</strong></td>
+                            <td>@summary.TeacherName</td>
+                            <td>@summary.TotalTasks</td>
+                            <td>@summary.CompletedTasks</td>
+                            <td>
+                                <span class="badge">@summary.StudentsWithAccess</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-info">لا توجد اختبارات حالياً.</div>
+        }
+    </div>
+</div>
+
+<!-- Access Logs -->
+<div class="panel panel-info">
+    <div class="panel-heading">
+        <h3 class="panel-title">سجل دخول الاختبارات</h3>
+    </div>
+    <div class="panel-body">
+        @if (Model.AccessLogs.Any())
+        {
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>الطالب</th>
+                        <th>الاختبار</th>
+                        <th>وقت الدخول</th>
+                        <th>عنوان IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model.AccessLogs)
+                    {
+                        <tr>
+                            <td>@log.StudentName</td>
+                            <td>@log.ExamTitle</td>
+                            <td>@log.AccessedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td><code>@log.IpAddress</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-info">لم يدخل أي طالب اختباراً بعد.</div>
+        }
+    </div>
+</div>
+
+<div style="margin-top: 20px;">
+    <a href="@Url.Action("Dashboard", "Admin", new { userId = ViewBag.AdminId })" class="btn btn-default">
+        العودة للوحة التحكم
+    </a>
+</div>

@@ -1,0 +1,130 @@
+@{
+    ViewBag.Title = "تسجيل صوت التحدي للمعلم";
+    var studentId = (int)ViewBag.StudentId;
+    var requestId = (int)ViewBag.RequestId;
+    var teacherName = ViewBag.TeacherName as string ?? "المعلم";
+    var notes = ViewBag.RequestNotes as string;
+}
+
+<h2>@ViewBag.Title</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="alert alert-info">
+    <p><strong>المعلم:</strong> @teacherName</p>
+    @if (!string.IsNullOrWhiteSpace(notes))
+    {
+        <p><strong>ملاحظات الطلب:</strong> @notes</p>
+    }
+    <p class="mb-0"><strong>تسجيل من المتصفح:</strong> اضغط «بدء التسجيل» واسمح للمتصفح باستخدام الميكروفون، ثم «إيقاف»، ثم «إرسال الصوت للمعلم». يمكنك بدلاً من ذلك اختيار ملف صوتي من جهازك.</p>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading">الطلب رقم @requestId — صوتك يصل للمعلم عبر نفس نظام رفع الجلسات</div>
+    <div class="panel-body">
+        @Html.Partial("_StudentVoiceRecorder", Tuple.Create(requestId, studentId))
+    </div>
+</div>
+
+<p>
+    @Html.ActionLink("← العودة إلى لوحة الطالب", "Dashboard", "Student", new { userId = studentId }, null)
+    &nbsp;|&nbsp;
+    @Html.ActionLink("جميع جلسات التسميع", "MyRecitationSessions", "Student", new { userId = studentId, requestId }, null)
+</p>
+
+@section scripts {
+<script>
+(function () {
+    function pickMime() {
+        var opts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+        if (!window.MediaRecorder) return '';
+        for (var i = 0; i < opts.length; i++) {
+            if (MediaRecorder.isTypeSupported(opts[i])) return opts[i];
+        }
+        return '';
+    }
+
+    document.body.addEventListener('click', function (e) {
+        var root = e.target.closest('.student-voice-recorder');
+        if (!root) return;
+
+        if (e.target.classList.contains('js-vrec-start')) {
+            e.preventDefault();
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('المتصفح لا يدعم التقاط الصوت من الميكروفون.');
+                return;
+            }
+            var statusEl = root.querySelector('.js-vrec-status');
+            var startBtn = root.querySelector('.js-vrec-start');
+            var stopBtn = root.querySelector('.js-vrec-stop');
+            var mime = pickMime();
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function (stream) {
+                    var chunks = [];
+                    var mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+                    mr.ondataavailable = function (ev) {
+                        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+                    };
+                    mr.onstop = function () {
+                        stream.getTracks().forEach(function (t) { t.stop(); });
+                        var blobType = mime || 'audio/webm';
+                        var blob = new Blob(chunks, { type: blobType });
+                        var ext = blobType.indexOf('mp4') >= 0 ? 'm4a' : 'webm';
+                        var file = new File([blob], 'student-recording.' + ext, { type: blob.type || blobType });
+                        var dt = new DataTransfer();
+                        dt.items.add(file);
+                        var finput = root.querySelector('.js-vrec-file');
+                        finput.files = dt.files;
+                        finput.dispatchEvent(new Event('change', { bubbles: true }));
+                        var audio = root.querySelector('.js-vrec-preview');
+                        if (root._vrecObjectUrl) URL.revokeObjectURL(root._vrecObjectUrl);
+                        root._vrecObjectUrl = URL.createObjectURL(blob);
+                        audio.src = root._vrecObjectUrl;
+                        audio.style.display = 'block';
+                        statusEl.textContent = 'تم التسجيل — اضغط «إرسال الصوت للمعلم».';
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        root._mediaRecorder = null;
+                    };
+                    root._mediaRecorder = mr;
+                    mr.start();
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusEl.textContent = 'جاري التسجيل...';
+                })
+                .catch(function (err) {
+                    root.querySelector('.js-vrec-status').textContent = '';
+                    alert('لم يُسمح بالميكروفون أو حدث خطأ: ' + (err && err.message ? err.message : err));
+                });
+            return;
+        }
+
+        if (e.target.classList.contains('js-vrec-stop')) {
+            e.preventDefault();
+            var mr = root._mediaRecorder;
+            if (mr && mr.state !== 'inactive') {
+                try { mr.stop(); } catch (x) { }
+            }
+            return;
+        }
+    });
+
+    document.querySelectorAll('.js-vrec-form').forEach(function (form) {
+        form.addEventListener('submit', function (ev) {
+            var inp = form.querySelector('.js-vrec-file');
+            if (!inp || !inp.files || inp.files.length === 0) {
+                ev.preventDefault();
+                alert('سجّل صوتاً بالزرّين «بدء» ثم «إيقاف»، أو اختر ملفاً صوتياً قبل الإرسال.');
+            }
+        });
+    });
+})();
+</script>
+}

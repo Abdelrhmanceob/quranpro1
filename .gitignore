@@ -43,3 +43,6 @@ fonts/
 
 # Logs
 *.log
+
+# Local uploads (recitation audio/video)
+App_Data/recitation-voices/

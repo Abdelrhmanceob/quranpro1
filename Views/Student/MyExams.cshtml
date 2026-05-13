@@ -1,0 +1,186 @@
+@model Maeen1_New.Models.ViewModels.StudentExamViewModel
+@{
+    ViewBag.Title = "اختباراتي";
+}
+
+<h2>اختباراتي ومهامي</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="panel panel-info">
+    <div class="panel-heading">
+        <h3 class="panel-title">طلب تسميع سريع</h3>
+    </div>
+    <div class="panel-body">
+        <p>بعد إنهاء الحفظ، اضغط الزر التالي لإنشاء طلب تسميع للمدرس.</p>
+        @using (Html.BeginForm("ChallengeSubmit", "Student", FormMethod.Post, new { @class = "form-inline" }))
+        {
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="studentId" value="@Model.StudentId" />
+            <div class="form-group" style="min-width: 300px; margin-left: 10px;">
+                <input type="text" name="notes" class="form-control" placeholder="ملاحظات اختيارية للمدرس" style="width:100%" />
+            </div>
+            <button type="submit" class="btn btn-primary">أنهيت الحفظ</button>
+            <a href="@Url.Action("MyRecitationSessions", "Student", new { userId = Model.StudentId })" class="btn btn-default" style="margin-right: 8px;">جلساتي</a>
+        }
+    </div>
+</div>
+
+@if (!Model.Exams.Any())
+{
+    <div class="alert alert-info">
+        <strong>لا توجد اختبارات حالياً.</strong>
+        <p>سيقوم المعلم بتعيين مهام لك قبل الاختبار. تابع هنا لاحقاً.</p>
+    </div>
+}
+else
+{
+    foreach (var exam in Model.Exams)
+    {
+        <div class="panel @(exam.CanAccessExam ? "panel-success" : "panel-default")">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    @exam.ExamTitle
+                    @if (exam.HasAccessedExam)
+                    {
+                        <span class="label label-info">تم الدخول</span>
+                    }
+                    else if (exam.CanAccessExam)
+                    {
+                        <span class="label label-success">جاهز للاختبار</span>
+                    }
+                    else
+                    {
+                        <span class="label label-warning">أكمل المهام أولاً</span>
+                    }
+                </h3>
+            </div>
+            <div class="panel-body">
+                @if (!string.IsNullOrEmpty(exam.ExamDescription))
+                {
+                    <p class="text-muted">@exam.ExamDescription</p>
+                }
+
+                <h4>المهام المطلوبة</h4>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>المهمة</th>
+                            <th>الوصف</th>
+                            <th>الاستحقاق</th>
+                            <th>إلزامية</th>
+                            <th>الحالة</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var task in exam.Tasks)
+                        {
+                            <tr class="@(task.IsApproved ? "success" : task.IsCompleted ? "warning" : "")">
+                                <td><strong>@task.Title</strong></td>
+                                <td>@(task.Description ?? "—")</td>
+                                <td>@(task.DueDate.HasValue ? task.DueDate.Value.ToString("yyyy-MM-dd") : "—")</td>
+                                <td>@(task.IsRequired ? "نعم" : "لا")</td>
+                                <td>
+                                    @if (task.IsApproved)
+                                    {
+                                        <span class="label label-success">تمت الموافقة ✓</span>
+                                    }
+                                    else if (task.IsCompleted)
+                                    {
+                                        <span class="label label-warning">في انتظار الموافقة</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="label label-default">لم يُسلّم</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!task.IsCompleted)
+                                    {
+                                        <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#completeModal-@task.TaskId">
+                                            تسليم المهمة
+                                        </button>
+
+                                        <!-- Modal -->
+                                        <div class="modal fade" id="completeModal-@task.TaskId" tabindex="-1" role="dialog">
+                                            <div class="modal-dialog" role="document">
+                                                <div class="modal-content">
+                                                    @using (Html.BeginForm("CompleteTask", "Student", FormMethod.Post))
+                                                    {
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="taskId" value="@task.TaskId" />
+                                                        <input type="hidden" name="studentId" value="@Model.StudentId" />
+                                                        <div class="modal-header">
+                                                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                                            <h4 class="modal-title">تسليم: @task.Title</h4>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="form-group">
+                                                                <label>ملاحظات (اختياري)</label>
+                                                                <textarea name="notes" class="form-control" rows="3" placeholder="أضف ملاحظات عن إنجازك..."></textarea>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-default" data-dismiss="modal">إلغاء</button>
+                                                            <button type="submit" class="btn btn-primary">تأكيد التسليم</button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (task.IsApproved)
+                                    {
+                                        <span class="text-success">مكتمل</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">بانتظار المعلم</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <!-- Access Exam Button -->
+                @if (exam.CanAccessExam && !exam.HasAccessedExam)
+                {
+                    <div class="text-center" style="margin-top: 15px;">
+                        @using (Html.BeginForm("AccessExam", "Student", FormMethod.Post))
+                        {
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="examId" value="@exam.ExamId" />
+                            <input type="hidden" name="studentId" value="@Model.StudentId" />
+                            <button type="submit" class="btn btn-lg btn-success">
+                                دخول الاختبار
+                            </button>
+                        }
+                    </div>
+                }
+                else if (exam.HasAccessedExam)
+                {
+                    <div class="text-center" style="margin-top: 15px;">
+                        <a href="@Url.Action("TakeExam", "Student", new { examId = exam.ExamId, userId = Model.StudentId })" class="btn btn-lg btn-info">
+                            العودة للاختبار
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+<div style="margin-top: 20px;">
+    <a href="@Url.Action("Dashboard", "Student", new { userId = Model.StudentId })" class="btn btn-default">
+        العودة للوحة التحكم
+    </a>
+</div>

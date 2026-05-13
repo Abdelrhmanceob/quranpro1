@@ -1,0 +1,264 @@
+@model IEnumerable<Maeen1_New.Models.RecitationRequest>
+@{
+    ViewBag.Title = "جلسات التسميع";
+    var studentId = (int)ViewBag.StudentId;
+    int highlightedRequestId = 0;
+    if (Request["requestId"] != null)
+    {
+        int.TryParse(Request["requestId"], out highlightedRequestId);
+    }
+    var studentVoiceUrls = ViewBag.StudentVoiceUrls as IDictionary<int, string>;
+    var teacherVoiceUrls = ViewBag.TeacherVoiceUrls as IDictionary<int, string>;
+    var studentScreenUrls = ViewBag.StudentScreenUrls as IDictionary<int, string>;
+    var teacherScreenUrls = ViewBag.TeacherScreenUrls as IDictionary<int, string>;
+}
+
+<h2>جلسات التسميع</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">لا توجد طلبات تسميع بعد.</div>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>رقم الطلب</th>
+                <th>المدرس</th>
+                <th>ملاحظات</th>
+                <th>الحالة</th>
+                <th>الإجراء</th>
+                    <th>تسجيل صوت الطالب</th>
+                    <th>تسجيل شاشة الطالب</th>
+                    <th>رد المعلم</th>
+                    <th>📤 إرسال نتيجة الاختبار</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in Model)
+            {
+                <tr>
+                    @if (highlightedRequestId > 0 && request.Id == highlightedRequestId)
+                    {
+                        <td colspan="10">
+                            <div class="alert alert-info" style="margin-bottom:10px;">
+                                👇 هذا هو طلبك الجديد. ابدأ الآن برفع تسجيل الصوت أو الشاشة لإرساله للمعلم.
+                            </div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td>@request.Id</td>
+                    <td>@(request.Teacher != null ? request.Teacher.Name : "غير محدد")</td>
+                    <td>@(string.IsNullOrWhiteSpace(request.Notes) ? "-" : request.Notes)</td>
+                    <td>
+                        @if (request.Session != null && !string.IsNullOrWhiteSpace(request.Session.GoogleMeetUrl))
+                        {
+                            <span class="label label-success">جاهزة</span>
+                        }
+                        else
+                        {
+                            <span class="label label-warning">معلقة</span>
+                        }
+                    </td>
+                    <td>
+                        @if (request.Session != null && !string.IsNullOrWhiteSpace(request.Session.GoogleMeetUrl))
+                        {
+                            <a href="@request.Session.GoogleMeetUrl" target="_blank" rel="noopener" class="btn btn-success btn-sm">
+                                دخول الجلسة
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-muted">بانتظار رابط Google Meet</span>
+                        }
+                    </td>
+                    <td style="min-width: 320px;">
+                        @Html.Partial("_StudentVoiceRecorder", Tuple.Create(request.Id, studentId))
+                        @if (studentVoiceUrls != null && studentVoiceUrls.ContainsKey(request.Id))
+                        {
+                            <div style="margin-top:8px;">
+                                <span class="small text-muted">ما تم إرساله للمعلم:</span>
+                                <audio controls preload="none" src="@studentVoiceUrls[request.Id]" style="width:100%"></audio>
+                            </div>
+                        }
+                    </td>
+                    <td style="min-width: 320px;">
+                        @using (Html.BeginForm("UploadRecitationScreen", "Student", FormMethod.Post, new { enctype = "multipart/form-data", @class = "form-inline", style = "display:flex;gap:6px;align-items:center;" }))
+                        {
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@request.Id" />
+                            <input type="hidden" name="studentId" value="@studentId" />
+                            <input type="file" name="screenFile" accept="video/*" class="form-control input-sm" required />
+                            <button type="submit" class="btn btn-primary btn-sm">رفع الشاشة</button>
+                        }
+                        @if (studentScreenUrls != null && studentScreenUrls.ContainsKey(request.Id))
+                        {
+                            <div style="margin-top:8px;">
+                                <video controls preload="metadata" src="@studentScreenUrls[request.Id]" style="width:100%;max-height:220px;"></video>
+                            </div>
+                        }
+                    </td>
+                    <td style="min-width: 260px;">
+                        @if (teacherVoiceUrls != null && teacherVoiceUrls.ContainsKey(request.Id))
+                        {
+                            <audio controls preload="none" src="@teacherVoiceUrls[request.Id]" style="width:100%"></audio>
+                        }
+                        else
+                        {
+                            <span class="text-muted">لا يوجد رد صوتي بعد</span>
+                        }
+                        @if (teacherScreenUrls != null && teacherScreenUrls.ContainsKey(request.Id))
+                        {
+                            <div style="margin-top:8px;">
+                                <video controls preload="metadata" src="@teacherScreenUrls[request.Id]" style="width:100%;max-height:220px;"></video>
+                            </div>
+                        }
+                    </td>
+                    <td style="min-width: 360px;">
+                        @using (Html.BeginForm("SubmitRecitationEvaluation", "Student", FormMethod.Post))
+                        {
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="requestId" value="@request.Id" />
+                            <input type="hidden" name="studentId" value="@studentId" />
+                            <div class="form-group">
+                                <label>الدرجة المحصلة</label>
+                                <input type="number" name="score" step="0.5" min="0" class="form-control input-sm" placeholder="مثال: 85" />
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>الدرجة الكاملة</label>
+                                <input type="number" name="maxScore" step="0.5" min="0" class="form-control input-sm" placeholder="مثال: 100" />
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>التقدير *</label>
+                                <select name="grade" class="form-control input-sm" required>
+                                    <option value="">-- اختر التقدير --</option>
+                                    <option value="ممتاز">ممتاز</option>
+                                    <option value="جيد جداً">جيد جداً</option>
+                                    <option value="جيد">جيد</option>
+                                    <option value="مقبول">مقبول</option>
+                                    <option value="راسب">راسب</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>ملاحظات المعلم</label>
+                                <input type="text" name="teacherNotes" class="form-control input-sm" placeholder="ملاحظة مختصرة..." />
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>نقاط القوة</label>
+                                <textarea name="strengths" rows="2" class="form-control input-sm" placeholder="ما أجاد فيه الطالب..."></textarea>
+                            </div>
+                            <div class="form-group" style="margin-top:6px;">
+                                <label>نقاط الضعف</label>
+                                <textarea name="weaknesses" rows="2" class="form-control input-sm" placeholder="نقاط الضعف"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-sm" style="margin-top:8px;">إرسال التقييم للمعلم</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a href="@Url.Action("MyExams", "Student", new { userId = studentId })" class="btn btn-default">العودة لاختباراتي</a>
+
+@section scripts {
+<script>
+(function () {
+    function pickMime() {
+        var opts = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+        if (!window.MediaRecorder) return '';
+        for (var i = 0; i < opts.length; i++) {
+            if (MediaRecorder.isTypeSupported(opts[i])) return opts[i];
+        }
+        return '';
+    }
+
+    document.body.addEventListener('click', function (e) {
+        var root = e.target.closest('.student-voice-recorder');
+        if (!root) return;
+
+        if (e.target.classList.contains('js-vrec-start')) {
+            e.preventDefault();
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('المتصفح لا يدعم التقاط الصوت من الميكروفون.');
+                return;
+            }
+            var statusEl = root.querySelector('.js-vrec-status');
+            var startBtn = root.querySelector('.js-vrec-start');
+            var stopBtn = root.querySelector('.js-vrec-stop');
+            var mime = pickMime();
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function (stream) {
+                    var chunks = [];
+                    var mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+                    mr.ondataavailable = function (ev) {
+                        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+                    };
+                    mr.onstop = function () {
+                        stream.getTracks().forEach(function (t) { t.stop(); });
+                        var blobType = mime || 'audio/webm';
+                        var blob = new Blob(chunks, { type: blobType });
+                        var ext = blobType.indexOf('mp4') >= 0 ? 'm4a' : 'webm';
+                        var file = new File([blob], 'student-recording.' + ext, { type: blob.type || blobType });
+                        var dt = new DataTransfer();
+                        dt.items.add(file);
+                        var finput = root.querySelector('.js-vrec-file');
+                        finput.files = dt.files;
+                        finput.dispatchEvent(new Event('change', { bubbles: true }));
+                        var audio = root.querySelector('.js-vrec-preview');
+                        if (root._vrecObjectUrl) URL.revokeObjectURL(root._vrecObjectUrl);
+                        root._vrecObjectUrl = URL.createObjectURL(blob);
+                        audio.src = root._vrecObjectUrl;
+                        audio.style.display = 'block';
+                        statusEl.textContent = 'تم التسجيل — أرسل للمعلم.';
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        root._mediaRecorder = null;
+                    };
+                    root._mediaRecorder = mr;
+                    mr.start();
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusEl.textContent = 'جاري التسجيل...';
+                })
+                .catch(function (err) {
+                    root.querySelector('.js-vrec-status').textContent = '';
+                    alert('لم يُسمح بالميكروفون أو حدث خطأ: ' + (err && err.message ? err.message : err));
+                });
+            return;
+        }
+
+        if (e.target.classList.contains('js-vrec-stop')) {
+            e.preventDefault();
+            var mr = root._mediaRecorder;
+            if (mr && mr.state !== 'inactive') {
+                try { mr.stop(); } catch (x) { }
+            }
+            return;
+        }
+    });
+
+    document.querySelectorAll('.js-vrec-form').forEach(function (form) {
+        form.addEventListener('submit', function (ev) {
+            var inp = form.querySelector('.js-vrec-file');
+            if (!inp || !inp.files || inp.files.length === 0) {
+                ev.preventDefault();
+                alert('سجّل صوتاً أو اختر ملفاً قبل الإرسال.');
+            }
+        });
+    });
+})();
+</script>
+}

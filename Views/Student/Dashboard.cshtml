@@ -1,22 +1,499 @@
-﻿
+﻿@model Maeen1_New.Models.ViewModels.StudentOnboardingWizardViewModel
 @{
-    ViewBag.Title = "Dashboard";
+    Layout = null;
+    ViewBag.Title = "معين | بوابة الطالب";
+    var studentUserId = Model != null ? Model.UserId : 0;
+    if (studentUserId <= 0 && Request["userId"] != null)
+    {
+        int parsedUserId;
+        if (int.TryParse(Request["userId"], out parsedUserId))
+        {
+            studentUserId = parsedUserId;
+        }
+    }
+
+    var studentExamRequests = ViewBag.StudentExamRequests as System.Collections.IEnumerable;
+    var teacherPlan = ViewBag.TeacherPlan;
+    var planNotifications = ViewBag.PlanNotifications as System.Collections.IEnumerable;
+    var dbPlanNotifications = new List<System.Collections.Generic.Dictionary<string, object>>();
+    var teachers = ViewBag.Teachers as System.Collections.IEnumerable;
+    Func<object, string, string> teacherValueOf = (obj, name) =>
+    {
+        if (obj == null) return null;
+        var prop = obj.GetType().GetProperty(name);
+        if (prop == null) return null;
+        return Convert.ToString(prop.GetValue(obj, null));
+    };
+    Func<object, string, string> valueOf = (obj, name) =>
+    {
+        if (obj == null) return null;
+        var prop = obj.GetType().GetProperty(name);
+        if (prop == null) return null;
+        return Convert.ToString(prop.GetValue(obj, null));
+    };
+    Func<object, string, DateTime?> dateOf = (obj, name) =>
+    {
+        if (obj == null) return null;
+        var prop = obj.GetType().GetProperty(name);
+        if (prop == null) return null;
+        var value = prop.GetValue(obj, null);
+        if (value == null) return null;
+        DateTime parsed;
+        return DateTime.TryParse(Convert.ToString(value), out parsed) ? (DateTime?)parsed : null;
+    };
+    Func<object, string, string> teacherPlanValueOf = (obj, name) =>
+    {
+        if (obj == null) return null;
+        var prop = obj.GetType().GetProperty(name);
+        if (prop == null) return null;
+        return Convert.ToString(prop.GetValue(obj, null));
+    };
+
+    try
+    {
+        using (var db = new Maeen1_New.Models.Maeen1_NewDbContext())
+        {
+            var rows = db.ExamResults
+                .Where(r => r.StudentId == studentUserId && r.Recommendations != null && r.Recommendations != "")
+                .OrderByDescending(r => r.SentAt)
+                .Take(20)
+                .ToList();
+
+            foreach (var row in rows)
+            {
+                var teacherName = db.Users.Where(u => u.Id == row.TeacherId).Select(u => u.Name).FirstOrDefault();
+                var examTitle = db.ExamRequests.Where(r => r.Id == row.ExamRequestId).Select(r => r.Title).FirstOrDefault();
+                dbPlanNotifications.Add(new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "TeacherName", teacherName },
+                    { "ExamTitle", examTitle },
+                    { "SentAt", row.SentAt },
+                    { "MemorizationPlan", row.Recommendations },
+                    { "TeacherNotes", row.TeacherNotes }
+                });
+            }
+        }
+    }
+    catch
+    {
+        // Keep dashboard resilient even if notifications query fails.
+    }
 }
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>@ViewBag.Title</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Noto+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00475e",
+                        "primary-container": "#1a5f7a",
+                        "primary-fixed": "#c0e8ff",
+                        surface: "#f7f9fb",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface-container": "#eceef0",
+                        "surface-container-high": "#e6e8ea",
+                        "on-surface": "#191c1e",
+                        "on-surface-variant": "#40484d",
+                        "outline-variant": "#c0c8cd",
+                        tertiary: "#004a41",
+                        error: "#ba1a1a"
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body { font-family: "Noto Sans Arabic", "Plus Jakarta Sans", sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .step-pane { display: none; }
+        .step-pane.active { display: block; }
+        .step-indicator.active { background: #00475e; color: #fff; border-color: #00475e; }
+        .challenge-box { margin-top: 12px; padding: 10px; border: 1px solid #c0c8cd; border-radius: 12px; background: #ffffff; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .challenge-hero { display: flex; align-items: center; gap: 8px; color: #00475e; font-weight: 700; }
+        .challenge-icon { font-size: 34px; color: #00475e; }
+        .challenge-btn { border: 0; background: #00475e; color: #fff; padding: 8px 14px; border-radius: 999px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+    <aside class="h-full w-64 fixed right-0 top-0 border-l border-outline-variant flex flex-col py-8 px-4 z-50 bg-primary-container">
+        <div class="flex flex-col items-center mb-10 text-center">
+            <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center text-white mb-4">
+                <span class="material-symbols-outlined text-4xl">menu_book</span>
+            </div>
+            <h1 class="text-xl font-bold text-white">معين</h1>
+            <p class="text-sm text-white/80">بوابة الطالب</p>
+        </div>
+        <nav class="flex-1 space-y-2">
+            <a class="flex items-center gap-4 py-3 px-4 rounded-lg bg-white/20 text-white border-r-4 border-white font-bold" href="@Url.Action("Dashboard", "Student", new { userId = studentUserId })">
+                <span class="material-symbols-outlined">home</span>
+                <span>الرئيسية</span>
+            </a>
+            <a class="flex items-center gap-4 py-3 px-4 rounded-lg text-white/80 hover:bg-white/10" href="@Url.Action("MyExams", "Student", new { userId = studentUserId })">
+                <span class="material-symbols-outlined">menu_book</span>
+                <span>فتح الاختبارات</span>
+            </a>
+            <a class="flex items-center gap-4 py-3 px-4 rounded-lg text-white/80 hover:bg-white/10" href="@Url.Action("MyRecitationSessions", "Student", new { userId = studentUserId })">
+                <span class="material-symbols-outlined">headset_mic</span>
+                <span>جلسات التسميع</span>
+            </a>
+        </nav>
+        <a class="flex items-center gap-4 py-3 px-4 rounded-lg text-white hover:bg-white/10" href="@Url.Action("Login", "Account")">
+            <span class="material-symbols-outlined">logout</span>
+            <span>تسجيل الخروج</span>
+        </a>
+    </aside>
 
-<h2>خطة الطالبة</h2>
+    <main class="mr-64 min-h-screen">
+        <header class="fixed top-0 left-0 right-64 z-40 bg-surface/90 backdrop-blur-md border-b border-outline-variant h-16 px-8 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-primary">لوحة الطالب</h2>
+            <div class="flex items-center gap-2">
+                <a class="px-4 py-2 rounded-full bg-primary text-white text-sm font-bold" href="@Url.Action("MyExams", "Student", new { userId = studentUserId })">فتح الاختبارات</a>
+                <a class="px-4 py-2 rounded-full bg-tertiary text-white text-sm font-bold" href="@Url.Action("MyRecitationSessions", "Student", new { userId = studentUserId })">جلسات التسميع</a>
+            </div>
+        </header>
 
-<div>
-    <p>عدد الساعات اليومية: 2 ساعة</p>
-    <p>السور الحالية: من البقرة إلى آل عمران</p>
-</div>
+        <div class="pt-24 px-8 pb-12 max-w-6xl mx-auto space-y-8">
+            <section class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden">
+                <div class="p-6 border-b border-outline-variant flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-primary">NOTIFICATIONS</h3>
+                    <span class="material-symbols-outlined text-primary">notifications</span>
+                </div>
+                <div class="p-6">
+                    @{
+                        var hasNotification = false;
 
-<hr />
+                        foreach (var n in dbPlanNotifications)
+                        {
+                            hasNotification = true;
+                            var nTeacher = n.ContainsKey("TeacherName") ? Convert.ToString(n["TeacherName"]) : null;
+                            var nTitle = n.ContainsKey("ExamTitle") ? Convert.ToString(n["ExamTitle"]) : null;
+                            var nPlan = n.ContainsKey("MemorizationPlan") ? Convert.ToString(n["MemorizationPlan"]) : null;
+                            var nNotes = n.ContainsKey("TeacherNotes") ? Convert.ToString(n["TeacherNotes"]) : null;
+                            var nDate = n.ContainsKey("SentAt") && n["SentAt"] != null ? (DateTime?)Convert.ToDateTime(n["SentAt"]) : null;
+                            <div class="rounded-xl border border-outline-variant bg-surface-container-low p-4 mb-3">
+                                <div class="font-bold text-sm text-primary mb-1">تم إرسال خطة حفظ جديدة من المعلم</div>
+                                <div class="text-sm text-on-surface-variant leading-7">
+                                    <div><strong>المعلم:</strong> @(string.IsNullOrWhiteSpace(nTeacher) ? "-" : nTeacher)</div>
+                                    <div><strong>الاختبار:</strong> @(string.IsNullOrWhiteSpace(nTitle) ? "-" : nTitle)</div>
+                                    <div><strong>وقت الإرسال:</strong> @(nDate.HasValue ? nDate.Value.ToString("yyyy/MM/dd HH:mm") : "-")</div>
+                                    @if (!string.IsNullOrWhiteSpace(nNotes))
+                                    {
+                                        <div class="mt-2"><strong>ملاحظات المعلم:</strong> @nNotes</div>
+                                    }
+                                    <div class="mt-2 whitespace-pre-line"><strong>الخطة:</strong> @nPlan</div>
+                                </div>
+                                @using (Html.BeginForm("ChallengeSubmit", "Student", FormMethod.Post))
+                                {
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="studentId" value="@studentUserId" />
+                                    <input type="hidden" name="examId" value="" />
+                                    <input type="hidden" name="redirectToRecord" value="true" />
+                                    <input type="hidden" name="notes" value="@("طلب تحدي للتسميع بعد الخطة - " + (string.IsNullOrWhiteSpace(nTitle) ? "طلب اختبار" : nTitle))" />
+                                    <div class="challenge-box">
+                                        <div class="challenge-hero">
+                                            <span class="material-symbols-outlined challenge-icon">menu_book</span>
+                                            <span>القرآن الكريم - تحدي</span>
+                                        </div>
+                                        <button type="submit" class="challenge-btn">تحدي</button>
+                                    </div>
+                                }
+                            </div>
+                        }
 
-<h3>مهام طالبة القرآن</h3>
+                        if (planNotifications != null)
+                        {
+                            foreach (var n in planNotifications)
+                            {
+                                hasNotification = true;
+                                var nTeacher = teacherPlanValueOf(n, "TeacherName");
+                                var nTitle = teacherPlanValueOf(n, "ExamTitle");
+                                var nPlan = teacherPlanValueOf(n, "MemorizationPlan");
+                                var nNotes = teacherPlanValueOf(n, "TeacherNotes");
+                                var nDate = dateOf(n, "SentAt");
+                                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-4 mb-3">
+                                    <div class="font-bold text-sm text-primary mb-1">تم إرسال خطة حفظ جديدة من المعلم</div>
+                                    <div class="text-sm text-on-surface-variant leading-7">
+                                        <div><strong>المعلم:</strong> @(string.IsNullOrWhiteSpace(nTeacher) ? "-" : nTeacher)</div>
+                                        <div><strong>الاختبار:</strong> @(string.IsNullOrWhiteSpace(nTitle) ? "-" : nTitle)</div>
+                                        <div><strong>وقت الإرسال:</strong> @(nDate.HasValue ? nDate.Value.ToString("yyyy/MM/dd HH:mm") : "-")</div>
+                                        @if (!string.IsNullOrWhiteSpace(nNotes))
+                                        {
+                                            <div class="mt-2"><strong>ملاحظات المعلم:</strong> @nNotes</div>
+                                        }
+                                        <div class="mt-2 whitespace-pre-line"><strong>الخطة:</strong> @nPlan</div>
+                                    </div>
+                                    @using (Html.BeginForm("ChallengeSubmit", "Student", FormMethod.Post))
+                                    {
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@studentUserId" />
+                                        <input type="hidden" name="examId" value="" />
+                                        <input type="hidden" name="redirectToRecord" value="true" />
+                                        <input type="hidden" name="notes" value="@("طلب تحدي للتسميع بعد الخطة - " + (string.IsNullOrWhiteSpace(nTitle) ? "طلب اختبار" : nTitle))" />
+                                        <div class="challenge-box">
+                                            <div class="challenge-hero">
+                                                <span class="material-symbols-outlined challenge-icon">menu_book</span>
+                                                <span>القرآن الكريم - تحدي</span>
+                                            </div>
+                                            <button type="submit" class="challenge-btn">تحدي</button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
 
-<ul>
-    <li>حفظ 5 آيات</li>
-    <li>مراجعة السابق</li>
-    <li>الاستماع للتلاوة</li>
-</ul>
+                        if (!hasNotification && teacherPlan != null)
+                        {
+                            var tpPlan = teacherPlanValueOf(teacherPlan, "MemorizationPlan");
+                            if (!string.IsNullOrWhiteSpace(tpPlan))
+                            {
+                                hasNotification = true;
+                                var tpTeacher = teacherPlanValueOf(teacherPlan, "TeacherName");
+                                var tpTitle = teacherPlanValueOf(teacherPlan, "ExamTitle");
+                                var tpDate = dateOf(teacherPlan, "SentAt");
+                                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-4 mb-3">
+                                    <div class="font-bold text-sm text-primary mb-1">تم إرسال خطة حفظ جديدة من المعلم</div>
+                                    <div class="text-sm text-on-surface-variant leading-7">
+                                        <div><strong>المعلم:</strong> @(string.IsNullOrWhiteSpace(tpTeacher) ? "-" : tpTeacher)</div>
+                                        <div><strong>الاختبار:</strong> @(string.IsNullOrWhiteSpace(tpTitle) ? "-" : tpTitle)</div>
+                                        <div><strong>وقت الإرسال:</strong> @(tpDate.HasValue ? tpDate.Value.ToString("yyyy/MM/dd HH:mm") : "-")</div>
+                                        <div class="mt-2 whitespace-pre-line"><strong>الخطة:</strong> @tpPlan</div>
+                                    </div>
+                                    @using (Html.BeginForm("ChallengeSubmit", "Student", FormMethod.Post))
+                                    {
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@studentUserId" />
+                                        <input type="hidden" name="examId" value="" />
+                                        <input type="hidden" name="redirectToRecord" value="true" />
+                                        <input type="hidden" name="notes" value="@("طلب تحدي للتسميع بعد الخطة - " + (string.IsNullOrWhiteSpace(tpTitle) ? "طلب اختبار" : tpTitle))" />
+                                        <div class="challenge-box">
+                                            <div class="challenge-hero">
+                                                <span class="material-symbols-outlined challenge-icon">menu_book</span>
+                                                <span>القرآن الكريم - تحدي</span>
+                                            </div>
+                                            <button type="submit" class="challenge-btn">تحدي</button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+
+                        if (!hasNotification)
+                        {
+                            <div class="border border-dashed border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">
+                                لا توجد إشعارات جديدة حالياً.
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+
+            <section class="grid grid-cols-12 gap-6">
+                <div class="col-span-12 bg-gradient-to-l from-primary to-primary-container rounded-3xl p-8 text-white">
+                    <h3 class="text-2xl font-bold mb-2">اختبار تحديد المستوى (5 أسئلة)</h3>
+                    <p class="text-white/90 text-sm">تم دمج النموذج داخل نفس تصميم الصفحة المطلوبة.</p>
+                </div>
+            </section>
+
+            <section class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6">
+                @using (Html.BeginForm("OnboardingWizard", "Student", FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UserId" value="@studentUserId" />
+
+                    <div class="flex items-center gap-2 mb-5 text-xs font-bold">
+                        <span class="step-indicator active w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center" data-step-ind="1">1</span>
+                        <span class="step-indicator w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center" data-step-ind="2">2</span>
+                        <span class="step-indicator w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center" data-step-ind="3">3</span>
+                        <span class="step-indicator w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center" data-step-ind="4">4</span>
+                        <span class="step-indicator w-7 h-7 rounded-full border border-outline-variant flex items-center justify-center" data-step-ind="5">5</span>
+                    </div>
+
+                    <div class="step-pane active" data-step="1">
+                        <label class="block mb-2 font-semibold text-sm">1) عدد ساعات الحفظ اليومية</label>
+                        <input class="w-full rounded-xl border-outline-variant" type="number" name="DailyMemorizationHours" min="1" max="12" required />
+                        <button type="button" class="next-step mt-5 w-full py-3 bg-primary text-white rounded-xl font-bold">التالي</button>
+                    </div>
+
+                    <div class="step-pane" data-step="2">
+                        <label class="block mb-2 font-semibold text-sm">2) عدد الأجزاء المستهدفة</label>
+                        <input class="w-full rounded-xl border-outline-variant" type="number" name="TargetJuzCount" min="1" max="30" required />
+                        <label class="block mt-4 mb-2 font-semibold text-sm">2.1) أسماء الأجزاء المستهدفة</label>
+                        <textarea class="w-full rounded-xl border-outline-variant" name="TargetJuzNames" rows="3" placeholder="مثال: جزء عم، جزء تبارك..." required></textarea>
+                        <div class="grid grid-cols-2 gap-2 mt-5">
+                            <button type="button" class="prev-step py-3 bg-surface-container rounded-xl font-bold">السابق</button>
+                            <button type="button" class="next-step py-3 bg-primary text-white rounded-xl font-bold">التالي</button>
+                        </div>
+                    </div>
+
+                    <div class="step-pane" data-step="3">
+                        <label class="block mb-2 font-semibold text-sm">3) الأجزاء المحفوظة مسبقًا</label>
+                        <input class="w-full rounded-xl border-outline-variant" type="number" name="CompletedJuzCount" min="0" max="30" required />
+                        <label class="block mt-4 mb-2 font-semibold text-sm">3.1) أسماء الأجزاء المحفوظة مسبقًا</label>
+                        <textarea class="w-full rounded-xl border-outline-variant" name="CompletedJuzNames" rows="3" placeholder="إذا كانت القيمة أكبر من صفر اكتب الأسماء هنا"></textarea>
+                        <div class="grid grid-cols-2 gap-2 mt-5">
+                            <button type="button" class="prev-step py-3 bg-surface-container rounded-xl font-bold">السابق</button>
+                            <button type="button" class="next-step py-3 bg-primary text-white rounded-xl font-bold">التالي</button>
+                        </div>
+                    </div>
+
+                    <div class="step-pane" data-step="4">
+                        <label class="block mb-2 font-semibold text-sm">4) مستوى التجويد</label>
+                        <select class="w-full rounded-xl border-outline-variant" name="TajweedLevel" required>
+                            <option value="">-- اختر --</option>
+                            <option value="مبتدئ">مبتدئ</option>
+                            <option value="متوسط">متوسط</option>
+                            <option value="متقدم">متقدم</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-2 mt-5">
+                            <button type="button" class="prev-step py-3 bg-surface-container rounded-xl font-bold">السابق</button>
+                            <button type="button" class="next-step py-3 bg-primary text-white rounded-xl font-bold">التالي</button>
+                        </div>
+                    </div>
+
+                    <div class="step-pane" data-step="5">
+                        <label class="block mb-2 font-semibold text-sm">5) المدة الزمنية المستهدفة</label>
+                        <input class="w-full rounded-xl border-outline-variant" type="text" name="TargetDuration" placeholder="مثال: 6 أشهر" required />
+                        <div class="grid grid-cols-2 gap-2 mt-5">
+                            <button type="button" class="prev-step py-3 bg-surface-container rounded-xl font-bold">السابق</button>
+                            <button type="submit" class="py-3 bg-primary text-white rounded-xl font-bold">حفظ وإكمال التقييم</button>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            <section class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-primary">المدرسون</h3>
+                    <span class="text-xs text-on-surface-variant">تمت إضافة صور المدرسين</span>
+                </div>
+                @{
+                    var hasTeachers = false;
+                    if (teachers != null)
+                    {
+                        foreach (var _ in teachers)
+                        {
+                            hasTeachers = true;
+                            break;
+                        }
+                    }
+                }
+                @if (!hasTeachers)
+                {
+                    <div class="border border-dashed border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">لا يوجد مدرسون متاحون حالياً.</div>
+                }
+                else
+                {
+                    var teacherImages = new[]
+                    {
+                        "https://lh3.googleusercontent.com/aida-public/AB6AXuBGqJ-1l7uySgw1q_l1fDH141EtV1rdF7WAMoCSIPjmX5Fl0wFdXFfQkytEyRl4R78elv5heRp4vZQ4OOWGKb_TY1n-cEM4hGpwxn8Wb7QrzaIRqP3hqb52F2nTRAtyPnpWHOFspGbX5ebHSYGv35p8QmShQtPbtnJoKxfPpvNEAApgQKWGQAxthgoE5ea3pfwypo6dQpBAEnhtzE36jBk_gKsFsk0KQzX-SBAgUJPXIRSluNjrHIHBW3WDgP1kTuuvtBbsSrTyAo1x",
+                        "https://lh3.googleusercontent.com/aida-public/AB6AXuDTRdDriub9GivKSChu4B1a8LYK6q6RKZT2-swXMe5mbJJevO8sFiuSYRrtnJBQAME5luMU1MxYeIm7H2-26e2Hv3SnPJuuTfgj6Hhu30GJjGM3el7qt8DZbrqa1NHLfHPeqUba2Jn7FR3_1xZ_DdvqQ93d5RBGw-ueOg938yArLEAAxRFmR_XS0c94fh9RfPgAgrz16XUcS5wvzimYl0vPCDHCgo13xGMTLzvdGtK0c-NtYldQvqejUSXpTS0PQJkD4I0HMBfiD3pP",
+                        "https://lh3.googleusercontent.com/aida-public/AB6AXuBhsg0jhCLjkKC0B2K8EMmv2LxaZ_HRpBgZbhsLjZdI700_SJM8brAdA-HZxwxjuhnM1R2iwFt2Sfa5STaT1Pd42HqncEQmh-KpglcD_SOCrRC1pVfElsfLS1u-Pg5ivAAin7h6HHFWs_jhoaUAvM7JPd_dp2FC9hxObR9mfBxzMb3eowiL6E2VvKS-xYopXJO1swE3FQABevEPjr15WsoOuLLVClv3R-m5rVmlymk3pf8Sie3S3Kh9KptU4yQ2iWBedkeKBFPpUVn1"
+                    };
+                    var index = 0;
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @foreach (var teacher in teachers)
+                        {
+                            var avatar = teacherImages[index % teacherImages.Length];
+                            index++;
+                            <div class="rounded-2xl border border-outline-variant bg-surface-container-low p-4">
+                                <div class="flex items-start gap-3">
+                                    <img src="@avatar" alt="صورة المدرس" class="w-16 h-16 rounded-xl object-cover border border-outline-variant" />
+                                    <div>
+                                        <div class="font-bold text-sm">@teacherValueOf(teacher, "Name")</div>
+                                        <div class="text-xs text-on-surface-variant">@(string.IsNullOrWhiteSpace(teacherValueOf(teacher, "Email")) ? "-" : teacherValueOf(teacher, "Email"))</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden">
+                <div class="p-6 border-b border-outline-variant flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-primary">حالة طلبات الاختبار</h3>
+                    <div class="flex items-center gap-2">
+                        <a class="px-4 py-2 rounded-full bg-primary text-white text-xs font-bold" href="@Url.Action("MyExams", "Student", new { userId = studentUserId })">فتح الاختبارات</a>
+                        <a class="px-4 py-2 rounded-full bg-tertiary text-white text-xs font-bold" href="@Url.Action("MyRecitationSessions", "Student", new { userId = studentUserId })">جلسات التسميع</a>
+                    </div>
+                </div>
+                <div class="p-6">
+                    @if (studentExamRequests == null)
+                    {
+                        <div class="border border-dashed border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">لا توجد طلبات اختبارات ظاهرة حالياً.</div>
+                    }
+                    else
+                    {
+                        var anyRequest = false;
+                        <div class="space-y-3">
+                            @foreach (var req in studentExamRequests)
+                            {
+                                anyRequest = true;
+                                var reqTitle = valueOf(req, "Title");
+                                var reqStatus = valueOf(req, "Status");
+                                var reqTeacherName = valueOf(req, "TeacherName");
+                                var reqGrade = valueOf(req, "Grade");
+                                var reqCreatedAt = dateOf(req, "CreatedAt");
+                                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-4">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <strong>@(string.IsNullOrWhiteSpace(reqTitle) ? "طلب اختبار" : reqTitle)</strong>
+                                        <span class="text-xs font-bold text-primary">@((string.IsNullOrWhiteSpace(reqStatus) ? "-" : reqStatus))</span>
+                                    </div>
+                                    <div class="mt-2 text-sm text-on-surface-variant leading-7">
+                                        <div><strong>المعلم:</strong> @(string.IsNullOrWhiteSpace(reqTeacherName) ? "لم يتم التعيين" : reqTeacherName)</div>
+                                        <div><strong>التقدير:</strong> @(string.IsNullOrWhiteSpace(reqGrade) ? "-" : reqGrade)</div>
+                                        <div><strong>تاريخ الطلب:</strong> @(reqCreatedAt.HasValue ? reqCreatedAt.Value.ToString("yyyy/MM/dd HH:mm") : "-")</div>
+                                    </div>
+                                </div>
+                            }
+                            @if (!anyRequest)
+                            {
+                                <div class="border border-dashed border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">لا توجد طلبات اختبار بعد.</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+    </main>
+    <script>
+        (function () {
+            var current = 1;
+            var max = 5;
+            var panes = document.querySelectorAll(".step-pane");
+            var indicators = document.querySelectorAll(".step-indicator");
+            function showStep(step) {
+                current = step;
+                panes.forEach(function (p) {
+                    p.classList.toggle("active", parseInt(p.getAttribute("data-step"), 10) === step);
+                });
+                indicators.forEach(function (i) {
+                    i.classList.toggle("active", parseInt(i.getAttribute("data-step-ind"), 10) <= step);
+                });
+            }
+            document.querySelectorAll(".next-step").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    if (current < max) showStep(current + 1);
+                });
+            });
+            document.querySelectorAll(".prev-step").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    if (current > 1) showStep(current - 1);
+                });
+            });
+            showStep(1);
+        })();
+    </script>
+</body>
+</html>
 

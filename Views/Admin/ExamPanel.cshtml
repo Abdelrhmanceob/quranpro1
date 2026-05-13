@@ -1,0 +1,629 @@
+@model Maeen1_New.Models.ViewModels.AdminExamPanelViewModel
+@{
+    Layout = null;
+    ViewBag.Title = "لوحة إدارة الاختبارات";
+    var studentAnswersByRequest = ViewBag.StudentAnswersByRequest as System.Collections.IDictionary;
+    string syncSuccessMessage = null;
+    string syncErrorMessage = null;
+
+    if (string.Equals(Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Request["syncLegacy"], "1", StringComparison.Ordinal))
+    {
+        int postedAdminId;
+        if (!int.TryParse(Request["adminId"], out postedAdminId) || postedAdminId != Model.AdminId)
+        {
+            syncErrorMessage = "فشل التحقق من هوية الأدمن لتنفيذ المزامنة.";
+        }
+        else
+        {
+            try
+            {
+                Func<string, string, string> extractPlanLine = (plan, prefix) =>
+                {
+                    if (string.IsNullOrWhiteSpace(plan) || string.IsNullOrWhiteSpace(prefix))
+                    {
+                        return null;
+                    }
+
+                    var lines = plan.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var raw in lines)
+                    {
+                        var line = raw.Trim();
+                        if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return line.Substring(prefix.Length).Trim();
+                        }
+                    }
+
+                    return null;
+                };
+
+                var updatedCount = 0;
+                using (var db = new Maeen1_New.Models.Maeen1_NewDbContext())
+                {
+                    var requestsToSync = db.ExamRequests
+                        .OrderByDescending(r => r.CreatedAt)
+                        .ToList();
+
+                    var studentIds = requestsToSync.Select(r => r.StudentId).Distinct().ToList();
+                    var profilesByStudent = db.StudentOnboardingProfiles
+                        .Where(p => studentIds.Contains(p.UserId))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .ToList()
+                        .GroupBy(p => p.UserId)
+                        .ToDictionary(g => g.Key, g => g.First());
+
+                    foreach (var request in requestsToSync)
+                    {
+                        Maeen1_New.Models.StudentOnboardingProfile profile;
+                        if (!profilesByStudent.TryGetValue(request.StudentId, out profile) || profile == null)
+                        {
+                            continue;
+                        }
+
+                        var level = string.IsNullOrWhiteSpace(profile.DeterminedLevel) ? "غير محدد" : profile.DeterminedLevel.Trim();
+                        var targetNames = extractPlanLine(profile.MemorizationPlan, "الأجزاء المستهدفة بالاسم:") ?? string.Empty;
+                        var completedNames = extractPlanLine(profile.MemorizationPlan, "الأجزاء المحفوظة مسبقًا بالاسم:") ?? string.Empty;
+                        var tajweed = profile.TajweedLevel ?? string.Empty;
+                        var duration = profile.TargetDuration ?? string.Empty;
+
+                        var normalizedDescription =
+                            "طلب اختبار تلقائي بعد إكمال تحديد المستوى.\n" +
+                            "المستوى: " + level +
+                            "\nساعات الحفظ اليومية: " + profile.DailyMemorizationHours +
+                            "\nالأجزاء المستهدفة: " + profile.TargetJuzCount +
+                            "\nأسماء الأجزاء المستهدفة: " + targetNames +
+                            "\nالأجزاء المحفوظة مسبقًا: " + profile.CompletedJuzCount +
+                            "\nأسماء الأجزاء المحفوظة مسبقًا: " + completedNames +
+                            "\nمستوى التجويد: " + tajweed +
+                            "\nالمدة الزمنية المستهدفة: " + duration;
+
+                        var currentDescription = request.Description ?? string.Empty;
+                        if (!string.Equals(currentDescription.Trim(), normalizedDescription.Trim(), StringComparison.Ordinal))
+                        {
+                            request.Description = normalizedDescription;
+                            updatedCount++;
+                        }
+                    }
+
+                    if (updatedCount > 0)
+                    {
+                        db.SaveChanges();
+                    }
+
+                    syncSuccessMessage = "تمت مزامنة بيانات الإجابات. عدد الطلبات المحدثة: " + updatedCount;
+                }
+            }
+            catch (Exception ex)
+            {
+                syncErrorMessage = "حدث خطأ أثناء المزامنة: " + ex.Message;
+            }
+        }
+    }
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة إدارة الاختبارات - أدمن</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Tajawal", "Segoe UI", sans-serif; background: #f0f4f8; color: #1e293b; }
+        .topbar { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+        .topbar h1 { font-size: 20px; }
+        .topbar a { color: #93c5fd; text-decoration: none; font-size: 14px; }
+        .container { max-width: 1200px; margin: 28px auto; padding: 0 20px; }
+        .alert { padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .card { background: white; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 28px; overflow: hidden; }
+        .card-header { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; padding: 16px 22px; font-size: 16px; font-weight: bold; }
+        .card-body { padding: 22px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group.full { grid-column: 1 / -1; }
+        label { font-size: 13px; font-weight: 600; color: #374151; }
+        input, select, textarea { padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: inherit; width: 100%; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-family: inherit; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #f8fafc; padding: 12px 14px; text-align: right; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        tr:hover td { background: #f8fafc; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-assigned { background: #dbeafe; color: #1e40af; }
+        .badge-sent { background: #d1fae5; color: #065f46; }
+        .plan-preview { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; font-size: 14px; color: #374151; white-space: pre-wrap; word-break: break-word; line-height: 1.7; }
+        .qa-block { margin-top: 6px; }
+        .qa-item { margin-bottom: 10px; }
+        .qa-question { font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+        .qa-answer {
+            background: #ecfdf3;
+            border: 1px solid #a7f3d0;
+            border-radius: 8px;
+            color: #065f46;
+            padding: 8px 10px;
+            white-space: pre-line;
+            word-break: break-word;
+            line-height: 1.8;
+        }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 14px; padding: 28px; width: 90%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 18px; color: #1e3a5f; }
+        .modal-close { float: left; background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; }
+        .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; }
+        @@media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🗂️ لوحة إدارة الاختبارات</h1>
+        <div>
+            <a href="/Admin/Dashboard?userId=@Model.AdminId">← لوحة التحكم</a>
+            &nbsp;&nbsp;
+            <a href="/Admin/ExamMonitor?userId=@Model.AdminId">مراقبة الاختبارات</a>
+        </div>
+    </div>
+
+    <div class="container">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">✅ @TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-error">❌ @TempData["Error"]</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(syncSuccessMessage))
+        {
+            <div class="alert alert-success">✅ @syncSuccessMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(syncErrorMessage))
+        {
+            <div class="alert alert-error">❌ @syncErrorMessage</div>
+        }
+
+        <!-- Create New Exam Request -->
+        <div class="card">
+            <div class="card-header">➕ إنشاء طلب اختبار جديد</div>
+            <div class="card-body">
+                <div style="display:flex;justify-content:flex-start;margin-bottom:14px">
+                    @using (Html.BeginForm("ExamPanel", "Admin", FormMethod.Post, new { style = "display:inline" }))
+                    {
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="adminId" value="@Model.AdminId" />
+                        <input type="hidden" name="userId" value="@Model.AdminId" />
+                        <input type="hidden" name="syncLegacy" value="1" />
+                        <button type="submit" class="btn btn-success" onclick="return confirm('سيتم تحديث وصف الطلبات القديمة بإجابات الطلاب من ملفاتهم. هل تريد المتابعة؟')">🔄 مزامنة بيانات الإجابات للطلبات القديمة</button>
+                    }
+                </div>
+                @using (Html.BeginForm("CreateExamRequest", "Admin", FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="AdminId" value="@Model.AdminId" />
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>عنوان الاختبار *</label>
+                            <input type="text" name="Title" placeholder="مثال: اختبار الرياضيات - الفصل الأول" required />
+                        </div>
+                        <div class="form-group">
+                            <label>الطالب *</label>
+                            <select name="StudentId" required>
+                                <option value="">-- اختر الطالب --</option>
+                                @foreach (var s in Model.Students)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>المعلم المسؤول (اختياري)</label>
+                            <select name="TeacherId">
+                                <option value="">-- اختر المعلم --</option>
+                                @foreach (var t in Model.Teachers)
+                                {
+                                    <option value="@t.Id">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>مدة الاختبار (دقيقة)</label>
+                            <input type="number" name="PlanDurationMinutes" placeholder="مثال: 60" min="1" />
+                        </div>
+                        <div class="form-group full">
+                            <label>وصف الاختبار</label>
+                            <textarea name="Description" placeholder="وصف مختصر للاختبار..."></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label>محتوى خطة الاختبار *</label>
+                            <textarea name="PlanContent" rows="4" placeholder="اكتب خطة الاختبار التفصيلية هنا..." required></textarea>
+                        </div>
+                        <div class="form-group full">
+                            <label>أهداف الاختبار</label>
+                            <textarea name="PlanObjectives" rows="3" placeholder="أهداف الاختبار التعليمية..."></textarea>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px">
+                        <button type="submit" class="btn btn-primary">📋 إنشاء الطلب</button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Exam Requests Table -->
+        <div class="card">
+            <div class="card-header">📝 تسليمات الطلاب (@Model.StudentSubmissions.Count)</div>
+            <div class="card-body" style="padding:0">
+                @if (!Model.StudentSubmissions.Any())
+                {
+                    <div class="empty-state">
+                        <div style="font-size:40px">🗒️</div>
+                        <p>لا توجد تسليمات طلاب حتى الآن</p>
+                    </div>
+                }
+                else
+                {
+                    <div style="overflow-x:auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>الطالب</th>
+                                    <th>الاختبار</th>
+                                    <th>المهمة</th>
+                                    <th>ملاحظات الطالب</th>
+                                    <th>الحالة</th>
+                                    <th>وقت التسليم</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var sub in Model.StudentSubmissions)
+                                {
+                                    <tr>
+                                        <td>@sub.CompletionId</td>
+                                        <td>@sub.StudentName</td>
+                                        <td>@sub.ExamTitle</td>
+                                        <td>@sub.TaskTitle</td>
+                                        <td style="max-width:260px; white-space:pre-wrap; word-break:break-word">@(!string.IsNullOrWhiteSpace(sub.Notes) ? sub.Notes : "—")</td>
+                                        <td>
+                                            @if (sub.IsApproved)
+                                            {
+                                                <span class="badge badge-sent">✅ معتمد</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge badge-pending">⏳ بانتظار اعتماد المعلم</span>
+                                            }
+                                        </td>
+                                        <td style="font-size:12px;color:#64748b">@sub.CompletedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">📋 طلبات الاختبارات (@Model.ExamRequests.Count)</div>
+            <div class="card-body" style="padding:0">
+                @if (!Model.ExamRequests.Any())
+                {
+                    <div class="empty-state">
+                        <div style="font-size:40px">📭</div>
+                        <p>لا توجد طلبات اختبارات بعد</p>
+                    </div>
+                }
+                else
+                {
+                    <div style="overflow-x:auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>عنوان الاختبار</th>
+                                    <th>الطالب</th>
+                                    <th>المعلم</th>
+                                    <th>الخطة</th>
+                                    <th>الحالة</th>
+                                    <th>تاريخ الإنشاء</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var req in Model.ExamRequests)
+                                {
+                                    <tr>
+                                        <td>@req.Id</td>
+                                        <td><strong>@req.Title</strong><br /><small style="color:#94a3b8">@req.Description</small></td>
+                                        <td>@req.StudentName</td>
+                                        <td>
+                                            @if (req.TeacherId.HasValue)
+                                            {
+                                                <span>@req.TeacherName</span>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-success" onclick="openAssignModal(@req.Id)">+ تعيين معلم</button>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm" style="background:#e0e7ff;color:#3730a3" onclick="openPlanModal(@req.Id)">👁 عرض الخطة</button>
+                                        </td>
+                                        <td>
+                                            @if (req.Status == "Pending")
+                                            {
+                                                <span class="badge badge-pending">⏳ معلق</span>
+                                            }
+                                            else if (req.Status == "AssignedToTeacher")
+                                            {
+                                                <span class="badge badge-assigned">👨‍🏫 معين للمعلم</span>
+                                            }
+                                            else if (req.Status == "TeacherApproved")
+                                            {
+                                                <span class="badge badge-sent">✅ المعلم وافق</span>
+                                            }
+                                            else if (req.Status == "TeacherRejected")
+                                            {
+                                                <span class="badge badge-pending">❌ المعلم رفض</span>
+                                            }
+                                            else if (req.Status == "TeacherPending")
+                                            {
+                                                <span class="badge badge-pending">⏳ قرار المعلم معلّق</span>
+                                            }
+                                            else if (req.Status == "ResultSent")
+                                            {
+                                                <span class="badge badge-sent">✅ النتيجة مرسلة</span>
+                                            }
+                                        </td>
+                                        <td style="font-size:12px;color:#64748b">@req.CreatedAt.ToString("yyyy/MM/dd")</td>
+                                        <td>
+                                            @using (Html.BeginForm("DeleteExamRequest", "Admin", FormMethod.Post, new { style = "display:inline" }))
+                                            {
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="requestId" value="@req.Id" />
+                                                <input type="hidden" name="adminId" value="@Model.AdminId" />
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من حذف هذا الطلب؟')">🗑</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Modal -->
+    @foreach (var req in Model.ExamRequests)
+    {
+        <div class="modal-overlay" id="plan-modal-@req.Id">
+            <div class="modal">
+                <button class="modal-close" onclick="closeModal('plan-modal-@req.Id')">✕</button>
+                <h3>📋 خطة الاختبار: @req.Title</h3>
+                <p style="font-size:13px;color:#64748b;margin-bottom:14px">الطالب: <strong>@req.StudentName</strong> | المدة: @(req.PlanDurationMinutes.HasValue ? req.PlanDurationMinutes + " دقيقة" : "غير محددة")</p>
+                @if (!string.IsNullOrEmpty(req.PlanObjectives))
+                {
+                    <div style="margin-bottom:14px">
+                        <strong style="font-size:13px;color:#374151">الأهداف:</strong>
+                        <div class="plan-preview">@req.PlanObjectives</div>
+                    </div>
+                }
+                <div style="margin-bottom:14px">
+                    <strong style="font-size:13px;color:#374151">أسئلة وإجابات الطالب:</strong>
+                    @{
+                        string q1 = null;
+                        string q2 = null;
+                        string q2Names = null;
+                        string q3 = null;
+                        string q3Names = null;
+                        string q4 = null;
+                        string q5 = null;
+
+                        Func<string, string, string> extractPlanLine = (plan, prefix) =>
+                        {
+                            if (string.IsNullOrWhiteSpace(plan) || string.IsNullOrWhiteSpace(prefix))
+                            {
+                                return null;
+                            }
+
+                            var lines = plan.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var raw in lines)
+                            {
+                                var line = raw.Trim();
+                                if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return line.Substring(prefix.Length).Trim();
+                                }
+                            }
+
+                            return null;
+                        };
+
+                        var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Maeen1ConnectionString"] != null
+                            ? System.Configuration.ConfigurationManager.ConnectionStrings["Maeen1ConnectionString"].ConnectionString
+                            : null;
+
+                        if (!string.IsNullOrWhiteSpace(connectionString))
+                        {
+                            using (var conn = new global::Npgsql.NpgsqlConnection(connectionString))
+                            {
+                                conn.Open();
+                                using (var cmd = new global::Npgsql.NpgsqlCommand("select daily_memorization_hours, target_juz_count, completed_juz_count, tajweed_level, target_duration, memorization_plan from public.student_onboarding_profiles where user_id=@uid order by created_at desc limit 1", conn))
+                                {
+                                    cmd.Parameters.AddWithValue("@uid", req.StudentId);
+                                    using (var reader = cmd.ExecuteReader())
+                                    {
+                                        if (reader.Read())
+                                        {
+                                            q1 = reader["daily_memorization_hours"] != DBNull.Value ? Convert.ToString(reader["daily_memorization_hours"]) : null;
+                                            q2 = reader["target_juz_count"] != DBNull.Value ? Convert.ToString(reader["target_juz_count"]) : null;
+                                            q3 = reader["completed_juz_count"] != DBNull.Value ? Convert.ToString(reader["completed_juz_count"]) : null;
+                                            q4 = reader["tajweed_level"] != DBNull.Value ? Convert.ToString(reader["tajweed_level"]) : null;
+                                            q5 = reader["target_duration"] != DBNull.Value ? Convert.ToString(reader["target_duration"]) : null;
+                                            var plan = reader["memorization_plan"] != DBNull.Value ? Convert.ToString(reader["memorization_plan"]) : null;
+                                            q2Names = extractPlanLine(plan, "الأجزاء المستهدفة بالاسم:");
+                                            q3Names = extractPlanLine(plan, "الأجزاء المحفوظة مسبقًا بالاسم:");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Fallback from request description for older rows
+                        Func<string, string, string> extractDescriptionLine = (text, prefix) =>
+                        {
+                            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(prefix))
+                            {
+                                return null;
+                            }
+                            var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var raw in lines)
+                            {
+                                var line = raw.Trim();
+                                if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    return line.Substring(prefix.Length).Trim();
+                                }
+                            }
+                            return null;
+                        };
+
+                        var desc = req.Description ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(q1))
+                        {
+                            q1 = extractDescriptionLine(desc, "ساعات الحفظ اليومية:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q2))
+                        {
+                            q2 = extractDescriptionLine(desc, "الأجزاء المستهدفة:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q3))
+                        {
+                            q3 = extractDescriptionLine(desc, "الأجزاء المحفوظة مسبقًا:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q4))
+                        {
+                            q4 = extractDescriptionLine(desc, "مستوى التجويد:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q5))
+                        {
+                            q5 = extractDescriptionLine(desc, "المدة الزمنية المستهدفة:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q2Names))
+                        {
+                            q2Names = extractDescriptionLine(desc, "أسماء الأجزاء المستهدفة:");
+                        }
+                        if (string.IsNullOrWhiteSpace(q3Names))
+                        {
+                            q3Names = extractDescriptionLine(desc, "أسماء الأجزاء المحفوظة مسبقًا:");
+                        }
+                    }
+                    <div class="plan-preview qa-block">
+                        <div class="qa-item">
+                            <div class="qa-question">1) عدد ساعات الحفظ اليومية</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q1) ? "-" : q1)</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question">2) عدد الأجزاء المستهدفة</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q2) ? "-" : q2)</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question">2.1) أسماء الأجزاء المستهدفة</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q2Names) ? "-" : q2Names)</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question">3) الأجزاء المحفوظة مسبقًا</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q3) ? "-" : q3)</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question">3.1) أسماء الأجزاء المحفوظة مسبقًا</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q3Names) ? "-" : q3Names)</div>
+                        </div>
+                        <div class="qa-item">
+                            <div class="qa-question">4) مستوى التجويد</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q4) ? "-" : q4)</div>
+                        </div>
+                        <div class="qa-item" style="margin-bottom:0">
+                            <div class="qa-question">5) المدة الزمنية المستهدفة</div>
+                            <div class="qa-answer">@(string.IsNullOrWhiteSpace(q5) ? "-" : q5)</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <strong style="font-size:13px;color:#374151">محتوى الخطة:</strong>
+                    <div class="plan-preview" style="margin-top:6px">@req.PlanContent</div>
+                </div>
+                <div style="margin-top:18px;text-align:left">
+                    <button class="btn btn-primary" onclick="closeModal('plan-modal-@req.Id')">إغلاق</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Assign Teacher Modal -->
+    @foreach (var req in Model.ExamRequests.Where(r => !r.TeacherId.HasValue))
+    {
+        <div class="modal-overlay" id="assign-modal-@req.Id">
+            <div class="modal">
+                <button class="modal-close" onclick="closeModal('assign-modal-@req.Id')">✕</button>
+                <h3>👨‍🏫 تعيين معلم للطلب: @req.Title</h3>
+                @using (Html.BeginForm("AssignTeacherToRequest", "Admin", FormMethod.Post))
+                {
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="RequestId" value="@req.Id" />
+                    <input type="hidden" name="AdminId" value="@Model.AdminId" />
+                    <div class="form-group" style="margin-top:14px">
+                        <label>اختر المعلم *</label>
+                        <select name="TeacherId" required>
+                            <option value="">-- اختر المعلم --</option>
+                            @foreach (var t in Model.Teachers)
+                            {
+                                <option value="@t.Id">@t.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div style="margin-top:16px;display:flex;gap:10px">
+                        <button type="submit" class="btn btn-primary">تعيين</button>
+                        <button type="button" class="btn" style="background:#e5e7eb" onclick="closeModal('assign-modal-@req.Id')">إلغاء</button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <script>
+        function openPlanModal(id) {
+            document.getElementById('plan-modal-' + id).classList.add('active');
+        }
+        function openAssignModal(id) {
+            document.getElementById('assign-modal-' + id).classList.add('active');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) overlay.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>
